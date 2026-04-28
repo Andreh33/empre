@@ -4,8 +4,6 @@
  */
 import { z } from "zod";
 
-const isProd = process.env.NODE_ENV === "production";
-
 const base64_32Bytes = z
   .string()
   .min(1, "vacio")
@@ -17,42 +15,52 @@ const base64_32Bytes = z
     }
   }, "Debe ser exactamente 32 bytes en base64 (genera con: openssl rand -base64 32)");
 
+/**
+ * Cadena opcional: trata "" como undefined para que un .env con clave vacia
+ * (caso comun en builds locales y previews) no rompa la validacion.
+ */
+const optionalString = z
+  .string()
+  .optional()
+  .transform((v) => (v && v.length > 0 ? v : undefined));
+
+const optionalUrl = z
+  .string()
+  .optional()
+  .transform((v) => (v && v.length > 0 ? v : undefined))
+  .refine((v) => !v || /^https?:\/\//.test(v), { message: "URL invalida" });
+
 const envSchema = z.object({
   NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
 
-  // Base de datos.
+  // Base de datos (siempre requeridos).
   TURSO_DATABASE_URL: z.string().url().startsWith("libsql://"),
-  TURSO_AUTH_TOKEN: isProd ? z.string().min(1) : z.string().min(1).or(z.literal("")),
+  TURSO_AUTH_TOKEN: z.string().min(1),
 
-  // Cifrado.
+  // Cifrado (siempre requeridos).
   ENCRYPTION_KEY: base64_32Bytes,
   SEARCH_HMAC_KEY: base64_32Bytes,
 
-  // Auth.
+  // Auth (siempre requeridos).
   NEXTAUTH_SECRET: z.string().min(32),
   NEXTAUTH_URL: z.string().url(),
-  AUTH_TRUST_HOST: z.string().optional(),
+  AUTH_TRUST_HOST: optionalString,
 
-  // Vercel Blob.
-  BLOB_READ_WRITE_TOKEN: isProd ? z.string().min(1) : z.string().optional(),
-
-  // Resend.
-  RESEND_API_KEY: isProd ? z.string().min(1) : z.string().optional(),
+  // Integraciones: opcionales en build/dev. Cada servicio falla loudly en
+  // runtime si se invoca sin sus secretos.
+  BLOB_READ_WRITE_TOKEN: optionalString,
+  RESEND_API_KEY: optionalString,
   RESEND_FROM_EMAIL: z.string().email().default("no-reply@asesoria-juangarcia.es"),
-
-  // Turnstile.
-  TURNSTILE_SITE_KEY: isProd ? z.string().min(1) : z.string().optional(),
-  TURNSTILE_SECRET_KEY: isProd ? z.string().min(1) : z.string().optional(),
-
-  // Upstash.
-  UPSTASH_REDIS_REST_URL: isProd ? z.string().url() : z.string().optional(),
-  UPSTASH_REDIS_REST_TOKEN: isProd ? z.string().min(1) : z.string().optional(),
+  TURNSTILE_SITE_KEY: optionalString,
+  TURNSTILE_SECRET_KEY: optionalString,
+  UPSTASH_REDIS_REST_URL: optionalUrl,
+  UPSTASH_REDIS_REST_TOKEN: optionalString,
 
   // Antivirus.
-  VIRUSTOTAL_API_KEY: z.string().optional(),
+  VIRUSTOTAL_API_KEY: optionalString,
 
   // Sentry.
-  SENTRY_DSN: z.string().optional(),
+  SENTRY_DSN: optionalString,
 
   // App.
   APP_NAME: z.string().default("Asesoria Empresarial Juan Garcia S.L."),

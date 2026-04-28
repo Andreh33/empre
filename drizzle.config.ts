@@ -1,5 +1,9 @@
-import "dotenv/config";
+import { config as loadEnv } from "dotenv";
 import type { Config } from "drizzle-kit";
+
+// Carga .env.local primero (si existe) y .env como fallback.
+loadEnv({ path: ".env.local" });
+loadEnv({ path: ".env" });
 
 if (!process.env.TURSO_DATABASE_URL) {
   throw new Error("TURSO_DATABASE_URL no esta definida en el entorno");

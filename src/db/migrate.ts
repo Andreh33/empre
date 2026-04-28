@@ -4,8 +4,11 @@
  *   npm run db:generate   # genera SQL en ./drizzle
  *   npm run db:migrate    # aplica contra Turso
  */
-import "dotenv/config";
+import { config as loadEnv } from "dotenv";
 import { createClient } from "@libsql/client";
+
+loadEnv({ path: ".env.local" });
+loadEnv({ path: ".env" });
 import { drizzle } from "drizzle-orm/libsql";
 import { migrate } from "drizzle-orm/libsql/migrator";
 
