@@ -1,0 +1,91 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 0 0% 100%;
+    --foreground: 215 50% 17%; /* brand-500 aproximado */
+
+    --card: 0 0% 100%;
+    --card-foreground: 215 50% 17%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 215 50% 17%;
+
+    /* Primary = brand */
+    --primary: 215 65% 17%;
+    --primary-foreground: 0 0% 100%;
+
+    /* Secondary = gris suave */
+    --secondary: 210 16% 95%;
+    --secondary-foreground: 215 50% 17%;
+
+    --muted: 210 16% 95%;
+    --muted-foreground: 215 12% 45%;
+
+    /* Accent = dorado */
+    --accent: 41 50% 59%;
+    --accent-foreground: 215 50% 17%;
+
+    --destructive: 0 72% 51%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 215 16% 88%;
+    --input: 215 16% 88%;
+    --ring: 215 65% 30%;
+
+    --radius: 0.5rem;
+  }
+
+  .dark {
+    --background: 215 50% 8%;
+    --foreground: 210 16% 95%;
+
+    --card: 215 50% 11%;
+    --card-foreground: 210 16% 95%;
+
+    --popover: 215 50% 11%;
+    --popover-foreground: 210 16% 95%;
+
+    --primary: 41 50% 59%;
+    --primary-foreground: 215 50% 8%;
+
+    --secondary: 215 30% 18%;
+    --secondary-foreground: 210 16% 95%;
+
+    --muted: 215 30% 18%;
+    --muted-foreground: 215 16% 65%;
+
+    --accent: 41 50% 59%;
+    --accent-foreground: 215 50% 8%;
+
+    --destructive: 0 62% 45%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 215 30% 22%;
+    --input: 215 30% 22%;
+    --ring: 41 50% 59%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  html {
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-size-adjust: 100%;
+  }
+  body {
+    @apply bg-background text-foreground;
+    /* Tipografia minima legible en movil. */
+    font-size: 16px;
+  }
+  button,
+  [role="button"] {
+    /* Objetivos tactiles >= 44x44 segun WCAG. */
+    min-height: 44px;
+  }
+}
