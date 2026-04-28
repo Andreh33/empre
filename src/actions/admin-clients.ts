@@ -39,7 +39,9 @@ const inviteSchema = z
   .object({ email: z.string().email().toLowerCase() })
   .and(profileSchema);
 
-export async function inviteClientAction(formData: FormData): Promise<ActionResult> {
+export async function inviteClientAction(
+  formData: FormData,
+): Promise<ActionResult<{ activationUrl?: string }>> {
   const session = await auth();
   if (!session?.user?.id || (session.user.role !== "ADMIN" && session.user.role !== "SUPER_ADMIN")) {
     return fail("FORBIDDEN", "Solo administradores");
@@ -130,7 +132,12 @@ export async function inviteClientAction(formData: FormData): Promise<ActionResu
   });
 
   const url = `${env.APP_URL}/recuperar/confirmar?token=${token}`;
-  await sendEmail({ to: email, ...clientInvitationTemplate(url, profile.nombre) });
+
+  // Si hay Resend, enviamos email; si no, devolvemos el link al admin para
+  // que se lo pase al cliente por el canal que prefiera.
+  if (env.RESEND_API_KEY) {
+    await sendEmail({ to: email, ...clientInvitationTemplate(url, profile.nombre) });
+  }
 
   const meta = await getRequestMeta();
   await logAudit({
@@ -150,7 +157,7 @@ export async function inviteClientAction(formData: FormData): Promise<ActionResu
     ip: meta.ip,
     userAgent: meta.userAgent,
   });
-  return { ok: true };
+  return { ok: true, data: env.RESEND_API_KEY ? {} : { activationUrl: url } };
 }
 
 // ---------------------------------------------------------------------

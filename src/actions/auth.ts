@@ -110,13 +110,19 @@ export async function registerAction(formData: FormData): Promise<ActionResult> 
   const userId = existing?.id ?? randomUUID();
   const passwordHash = await hashPassword(parsed.data.password);
 
+  // Si no hay servicio de email configurado, auto-verificamos para no
+  // dejar al usuario atrapado sin posibilidad de recibir el token.
+  const autoVerify = !env.RESEND_API_KEY;
+  const verifyTimestamp = autoVerify ? new Date().toISOString() : null;
+
   if (existing) {
     // Reactivar cuenta marcada como borrada (caso reset).
     await db
       .update(schema.users)
       .set({
         passwordHash,
-        emailVerified: false,
+        emailVerified: autoVerify,
+        emailVerifiedAt: verifyTimestamp,
         deletedAt: null,
         deletionScheduledFor: null,
         updatedAt: new Date().toISOString(),
@@ -129,6 +135,8 @@ export async function registerAction(formData: FormData): Promise<ActionResult> 
       emailHash: hash,
       passwordHash,
       role: "CLIENT",
+      emailVerified: autoVerify,
+      emailVerifiedAt: verifyTimestamp,
     });
   }
 
@@ -155,16 +163,18 @@ export async function registerAction(formData: FormData): Promise<ActionResult> 
     },
   ]);
 
-  // Token de verificacion (1 hora).
-  const token = generateToken();
-  await db.insert(schema.emailVerificationTokens).values({
-    id: randomUUID(),
-    userId,
-    tokenHash: hashToken(token),
-    expiresAt: isoFromNow(60 * 60 * 1000),
-  });
-  const verifyUrl = `${env.APP_URL}/verificar?token=${token}`;
-  await sendEmail({ to: email, ...emailVerificationTemplate(verifyUrl) });
+  // Token de verificacion (1 hora) solo si hay servicio de email.
+  if (!autoVerify) {
+    const token = generateToken();
+    await db.insert(schema.emailVerificationTokens).values({
+      id: randomUUID(),
+      userId,
+      tokenHash: hashToken(token),
+      expiresAt: isoFromNow(60 * 60 * 1000),
+    });
+    const verifyUrl = `${env.APP_URL}/verificar?token=${token}`;
+    await sendEmail({ to: email, ...emailVerificationTemplate(verifyUrl) });
+  }
 
   await logAudit({
     userId,

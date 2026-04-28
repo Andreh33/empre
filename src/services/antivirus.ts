@@ -25,12 +25,11 @@ export async function scanWithVirusTotal(
   buffer: ArrayBuffer,
   filename: string,
 ): Promise<AvResult> {
+  // Sin API key configurada: marcamos PENDING para revision posterior y
+  // dejamos que la subida proceda. Cuando se configure la clave, un cron
+  // (Fase 9 manual) puede reanalizar los archivos PENDING.
   if (!env.VIRUSTOTAL_API_KEY) {
-    if (env.NODE_ENV === "production") {
-      console.error("[av] VIRUSTOTAL_API_KEY ausente en produccion");
-      return { status: "ERROR", report: { error: "av_not_configured" } };
-    }
-    return { status: "PENDING", report: { skipped: "no_api_key_in_dev" } };
+    return { status: "PENDING", report: { skipped: "no_api_key" } };
   }
 
   try {

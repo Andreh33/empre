@@ -40,11 +40,11 @@ export function RegisterForm({ turnstileSiteKey }: Props) {
     return (
       <div className="space-y-3 text-sm">
         <p className="rounded-md bg-emerald-50 p-3 text-emerald-900">
-          Hemos enviado un email para verificar tu cuenta. Revisa la bandeja de entrada (y la
-          carpeta de spam). El enlace expira en 1 hora.
+          Cuenta creada. Si te enviamos un email de verificacion, revisalo (caduca en 1 h).
+          En caso contrario, ya puedes iniciar sesion.
         </p>
         <Link href="/login" className="block text-center text-primary underline-offset-4 hover:underline">
-          Volver al login
+          Ir al login
         </Link>
       </div>
     );

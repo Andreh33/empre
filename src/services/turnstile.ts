@@ -15,13 +15,9 @@ interface TurnstileResponse {
 }
 
 export async function verifyTurnstile(token: string, ip?: string): Promise<boolean> {
-  if (!env.TURNSTILE_SECRET_KEY) {
-    if (env.NODE_ENV === "production") {
-      console.error("[turnstile] secret no configurado en produccion");
-      return false;
-    }
-    return true;
-  }
+  // Sin secret configurado: CAPTCHA deshabilitado (cualquier entorno).
+  // El operador puede activarlo en cualquier momento anyadiendo TURNSTILE_*.
+  if (!env.TURNSTILE_SECRET_KEY) return true;
   if (!token) return false;
 
   const body = new URLSearchParams();
