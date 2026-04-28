@@ -42,6 +42,18 @@ export default async function PanelLayout({ children }: { children: React.ReactN
           <Link href="/panel/datos" className="hover:text-gold">
             Mis datos
           </Link>
+          <Link href="/panel/documentos" className="hover:text-gold">
+            Documentos
+          </Link>
+          <Link href="/panel/mensajes" className="hover:text-gold">
+            Mensajes
+          </Link>
+          <Link href="/panel/calendario" className="hover:text-gold">
+            Calendario
+          </Link>
+          <Link href="/panel/privacidad" className="hover:text-gold">
+            Privacidad
+          </Link>
           <Link href="/panel/seguridad" className="hover:text-gold">
             Seguridad
           </Link>

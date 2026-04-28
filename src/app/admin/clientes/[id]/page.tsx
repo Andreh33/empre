@@ -75,6 +75,33 @@ export default async function ClienteFichaPage({ params }: PageProps) {
         </div>
       </div>
 
+      <div className="flex flex-wrap gap-3">
+        <Link
+          href={`/admin/clientes/${user.id}/documentos`}
+          className="rounded-md bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground"
+        >
+          Documentos
+        </Link>
+        <Link
+          href={`/admin/clientes/${user.id}/chat`}
+          className="rounded-md border border-input px-4 py-2 text-sm font-semibold"
+        >
+          Chat
+        </Link>
+        <Link
+          href={`/admin/clientes/${user.id}/calendario`}
+          className="rounded-md border border-input px-4 py-2 text-sm font-semibold"
+        >
+          Calendario
+        </Link>
+        <Link
+          href={`/admin/clientes/${user.id}/notas`}
+          className="rounded-md border border-input px-4 py-2 text-sm font-semibold"
+        >
+          Notas internas
+        </Link>
+      </div>
+
       <section className="rounded-lg border bg-card p-5">
         <h2 className="mb-4 text-lg font-semibold">Editar datos</h2>
         <ClientEdit profile={profile} clientUserId={user.id} />

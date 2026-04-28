@@ -1,6 +1,8 @@
 import type { Metadata, Viewport } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
+import { CookieBanner } from "@/components/legal/cookie-banner";
+import { RegisterSW } from "@/components/pwa/register-sw";
 
 const inter = Inter({
   subsets: ["latin"],
@@ -21,6 +23,12 @@ export const metadata: Metadata = {
   keywords: ["asesoria", "fiscal", "RGPD", "Espana", "documentos cifrados"],
   robots: { index: false, follow: false }, // privada hasta lanzamiento
   formatDetection: { telephone: false, email: false, address: false },
+  manifest: "/manifest.webmanifest",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "black-translucent",
+    title: "Juan Garcia",
+  },
 };
 
 export const viewport: Viewport = {
@@ -42,6 +50,8 @@ export default function RootLayout({
     <html lang="es" className={inter.variable} suppressHydrationWarning>
       <body className="min-h-screen bg-background font-sans text-foreground antialiased">
         {children}
+        <CookieBanner />
+        <RegisterSW />
       </body>
     </html>
   );

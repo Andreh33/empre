@@ -93,6 +93,16 @@ export function clientInvitationTemplate(invitationUrl: string, nombre: string) 
   return { subject: `Tu cuenta en ${env.APP_NAME}`, text, html };
 }
 
+export function newMessageTemplate(contextUrl: string) {
+  const text = `Tienes un nuevo mensaje en ${env.APP_NAME}.\n\nAccede aqui:\n${contextUrl}`;
+  const html = `<div style="${baseStyles}">
+    <h2>Tienes un nuevo mensaje</h2>
+    <p>Hay novedades en tu conversacion con la asesoria.</p>
+    <p><a href="${contextUrl}" style="${buttonStyles}">Ver en el panel</a></p>
+  </div>`;
+  return { subject: `Nuevo mensaje - ${env.APP_NAME}`, text, html };
+}
+
 export function accountLockedTemplate(unlockAt: Date) {
   const fecha = unlockAt.toLocaleString("es-ES", { timeZone: "Europe/Madrid" });
   const text = `Tu cuenta en ${env.APP_NAME} ha sido bloqueada temporalmente por multiples intentos fallidos de inicio de sesion. Se desbloqueara automaticamente el ${fecha}. Si no has sido tu, contacta con la asesoria.`;

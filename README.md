@@ -1,227 +1,206 @@
 # Asesoría Empresarial Juan García S.L. — Plataforma SaaS
 
-Plataforma web profesional, segura y mobile-first para gestionar clientes, intercambiar documentos cifrados y comunicarse de forma directa con la asesoría. Construida para cumplir RGPD, LOPDGDD y LSSI-CE.
+Plataforma web profesional, segura y mobile-first para que la asesoría gestione clientes, intercambie documentos cifrados y mantenga conversación con ellos. Construida para cumplir RGPD, LOPDGDD y LSSI-CE.
 
-> **Estado actual:** Fase 1 (cimientos). Aún no incluye autenticación, gestión documental ni chat — esos módulos llegan en fases sucesivas.
+> Estado actual: Fases 1 a 9 implementadas. Pendiente de auditoría legal y de seguridad antes de exposición pública.
 
 ---
 
 ## 🧱 Stack
 
-| Capa            | Tecnología                                                        |
-| --------------- | ----------------------------------------------------------------- |
-| Framework       | Next.js 15 (App Router) + TypeScript estricto                     |
-| UI              | Tailwind CSS + shadcn/ui (Radix primitives)                       |
-| BBDD            | Turso (libSQL) — región AWS EU-West-1 (Irlanda)                   |
-| ORM             | Drizzle ORM con migraciones versionadas                           |
-| Auth            | Auth.js (NextAuth v5) + Argon2id + 2FA TOTP _(Fase 2)_            |
-| Almacenamiento  | Vercel Blob (UE) _(Fase 4)_                                       |
-| Email           | Resend _(Fase 2)_                                                 |
-| Rate limiting   | Upstash Redis _(Fase 2)_                                          |
-| Antivirus       | VirusTotal API _(Fase 4)_                                         |
-| CAPTCHA         | Cloudflare Turnstile _(Fase 2)_                                   |
-| Validación      | Zod en cliente y servidor                                         |
-| Cifrado         | AES-256-GCM (`@noble/ciphers`) + HMAC-SHA256 para búsqueda        |
-| Despliegue      | Vercel — región `fra1` (Frankfurt) o `dub1` (Dublín)              |
+| Capa | Tecnología |
+| --- | --- |
+| Framework | Next.js 16 (App Router) + TypeScript estricto |
+| UI | Tailwind CSS + shadcn/ui (Radix primitives) |
+| BBDD | Turso (libSQL) — región AWS EU-West-1 (Irlanda) |
+| ORM | Drizzle ORM con migraciones versionadas |
+| Auth | Auth.js v5 + Argon2id + 2FA TOTP |
+| Almacenamiento | Vercel Blob (UE) |
+| Email | Resend |
+| Rate limiting | Upstash Redis |
+| Antivirus | VirusTotal API + magic-number |
+| CAPTCHA | Cloudflare Turnstile |
+| Validación | Zod cliente y servidor |
+| Cifrado | AES-256-GCM (`@noble/ciphers`) + HMAC-SHA256 búsqueda |
+| Tests | Vitest |
+| CI/CD | GitHub Actions + Vercel |
 
 ---
 
-## 📁 Estructura del proyecto
+## 📁 Estructura
 
 ```
-.
-├── src/
-│   ├── app/                      # Rutas App Router (UI)
-│   │   ├── layout.tsx
-│   │   ├── page.tsx
-│   │   └── globals.css
-│   ├── components/ui/            # shadcn/ui primitives
-│   ├── db/
-│   │   ├── schema.ts             # Esquema Drizzle (tablas, índices, tipos)
-│   │   ├── index.ts              # Cliente Drizzle (singleton Turso)
-│   │   └── migrate.ts            # Aplica migraciones generadas
-│   ├── lib/
-│   │   ├── env.ts                # Validación Zod de variables de entorno
-│   │   ├── crypto.ts             # AES-256-GCM + HMAC para búsqueda
-│   │   ├── spanish-id.ts         # Validación oficial DNI/NIE/CIF + IBAN
-│   │   └── utils.ts              # cn() para Tailwind
-│   ├── services/                 # (Fase 2+) capa de servicios de negocio
-│   └── actions/                  # (Fase 2+) Server Actions de Next.js
-├── drizzle/                      # Migraciones SQL generadas (gitignored)
-├── next.config.ts                # Headers de seguridad (CSP, HSTS, etc.)
-├── tailwind.config.ts            # Tokens de marca (#0F2A47 / #C9A961)
-├── drizzle.config.ts
-├── tsconfig.json                 # TS estricto + noUncheckedIndexedAccess
-├── .env.example                  # Variables de entorno necesarias
-├── .gitignore
-└── README.md
+src/
+├── app/                    # App Router (UI)
+│   ├── (auth)/             # login, registro, recuperar, verificar
+│   ├── admin/              # panel administrativo
+│   ├── panel/              # área cliente
+│   ├── legal/              # privacidad, aviso legal, cookies, términos
+│   └── api/                # auth, files, rgpd...
+├── auth/                   # Auth.js config (server + edge)
+├── actions/                # Server Actions (auth, profile, files, ...)
+├── components/             # UI: ui/, auth/, files/, chat/, calendar/, legal/, pwa/...
+├── db/schema.ts            # Esquema Drizzle (12 tablas)
+├── lib/                    # env, crypto, schemas, guards, utils
+├── services/               # password, mail, rate-limit, storage, antivirus, files, ...
+└── types/                  # next-auth.d.ts
+public/
+├── manifest.webmanifest
+├── icons/icon-192.svg, icon-512.svg
+└── sw.js                   # service worker
+scripts/seed-superadmin.ts
+tests/                      # Vitest
+.github/workflows/ci.yml
 ```
 
 ---
 
-## 🔐 Modelo de seguridad (resumen)
+## 🔐 Modelo de seguridad
 
-- **TLS 1.3** forzado en producción (HSTS preload).
-- **CSP estricta** declarada en `next.config.ts`. `frame-ancestors: 'none'`, `object-src: 'none'`, `upgrade-insecure-requests`.
-- **Cifrado de campos sensibles** (DNI/NIE, IBAN, NSS, CIF, secretos 2FA) con AES-256-GCM antes de persistir.
-- **Búsqueda de DNI/email** mediante hash HMAC-SHA256 determinístico (no cifrado determinístico → resiste análisis de frecuencia).
-- **Argon2id** para contraseñas (Fase 2). Política mín. 12 caracteres con mayúsculas, minúsculas, números y símbolos.
-- **2FA TOTP** obligatorio para administradores; opcional pero recomendado para clientes.
-- **Bloqueo progresivo:** 3 intentos → CAPTCHA, 5 → 15 min, 10 → 24 h + alerta por email.
-- **Sesiones JWT:** 15 min de inactividad / 8 h máximo absoluto. Cookies `httpOnly, secure, sameSite=strict`.
-- **Rate limiting:** 100 req/min por IP, 10 req/min en endpoints de auth.
-- **Antivirus** + bloqueo por extensión Y magic number antes de subir a Blob.
-- **Auditoría inmutable** en tabla `audit_logs` con retención 12 meses.
-- **Backups diarios cifrados** con redundancia en otro proveedor UE _(Fase 9)_.
+- **TLS 1.3** forzado (HSTS preload).
+- **CSP** estricta declarada en `next.config.ts` (`frame-ancestors: 'none'`, `object-src: 'none'`, `upgrade-insecure-requests`).
+- **Cifrado de campos sensibles** (DNI/NIE, IBAN, NSS, CIF, secretos 2FA): AES-256-GCM antes de persistir.
+- **Cifrado de archivos**: cada blob se cifra en servidor antes de subir a Vercel Blob; contenido público sólo opaco. Las descargas se hacen vía `/api/files/[id]` (descifra y entrega).
+- **Búsqueda por DNI/email**: hash HMAC-SHA256 determinístico (resiste análisis de frecuencia).
+- **Argon2id** (OWASP 2023): mín. 12 caracteres con mayús, minús, números y símbolos.
+- **2FA TOTP** obligatorio para administradores (excepción de bootstrap para SUPER_ADMIN inicial); opcional pero recomendado para clientes.
+- **Bloqueo progresivo**: 3 fallos → CAPTCHA, 5 → 15 min, 10 → 24 h + email de alerta.
+- **Sesiones JWT**: 15 min inactividad / 8 h máximo absoluto. Cookies `httpOnly + secure + sameSite=strict`, `__Secure-` en prod.
+- **Rate limiting** (Upstash sliding-window): 10 req/min auth, 100 req/min global.
+- **Antivirus** (VirusTotal): rechaza `INFECTED`. Bloqueo previo por extensión y magic-number.
+- **Auditoría inmutable** en `audit_logs` con retención 12 meses.
+- **Cabeceras**: HSTS, X-Frame-Options DENY, X-Content-Type-Options nosniff, Referrer-Policy, Permissions-Policy, COOP/CORP.
+
+---
+
+## 🧩 Funcionalidades
+
+### Cliente (`/panel`)
+- Onboarding obligatorio si no hay perfil.
+- Mis datos: ver y editar (DNI/IBAN con confirmación email 30 min).
+- Documentos: subida drag&drop (cámara móvil), 50 MB máx, antivirus, cifrado, ZIP múltiple, vista de archivos del admin con tu mensaje.
+- Mensajes: chat con la asesoría (notifica al admin asignado por email).
+- Calendario fiscal: eventos genéricos + personalizados.
+- Privacidad: descarga RGPD Art. 15 (ZIP datos+documentos), solicitar baja Art. 17.
+- Seguridad: activar/desactivar 2FA, recuperar contraseña.
+
+### Administrador (`/admin`)
+- Listado de clientes paginado con buscador (nombre, apellidos, email, teléfono y **DNI exacto** vía hash).
+- Ficha completa con edición sin necesidad de confirmación email.
+- Documentos por cliente: sube con mensaje (genera mensaje en chat), separa archivos del admin y archivos enviados por el cliente.
+- Chat con plantillas frecuentes.
+- Calendario por cliente (general en `/admin/calendario`, evento por cliente en su pestaña).
+- Notas internas privadas.
+- Auditoría con filtros por acción/fecha/usuario.
+- Calendario: SUPER_ADMIN puede sembrar eventos fiscales genéricos del año.
 
 ---
 
 ## 🚀 Puesta en marcha local
 
 ### 1. Requisitos
-
-- Node.js ≥ 20 (probado con 24)
+- Node ≥ 20 (probado con 24)
 - npm ≥ 10
-- Cuenta de Turso con base de datos creada en `aws-eu-west-1`
+- Cuenta Turso con base de datos en `aws-eu-west-1`.
 
-### 2. Instalar dependencias
-
+### 2. Instalar y configurar
 ```bash
 npm install
-```
-
-> En Windows, `argon2` requiere Visual Studio Build Tools o `windows-build-tools`. Si la instalación falla, instala los Build Tools desde Visual Studio Installer (workload "Desarrollo para escritorio con C++") y vuelve a ejecutar `npm install`.
-
-### 3. Configurar variables de entorno
-
-Copia `.env.example` a `.env.local` y rellena los valores:
-
-```bash
 cp .env.example .env.local
+
+# Genera secretos
+openssl rand -base64 32   # ENCRYPTION_KEY
+openssl rand -base64 32   # SEARCH_HMAC_KEY
+openssl rand -base64 32   # NEXTAUTH_SECRET
 ```
+Mínimo para arrancar: `TURSO_DATABASE_URL`, `TURSO_AUTH_TOKEN`, `ENCRYPTION_KEY`, `SEARCH_HMAC_KEY`, `NEXTAUTH_SECRET`, `NEXTAUTH_URL=http://localhost:3000`, `APP_URL=http://localhost:3000`.
 
-Genera los secretos críticos:
+> En Windows, `argon2` requiere Visual Studio Build Tools (workload "Desarrollo para escritorio con C++").
 
+### 3. BBDD y seed
 ```bash
-# ENCRYPTION_KEY (32 bytes base64)
-openssl rand -base64 32
-
-# SEARCH_HMAC_KEY (32 bytes base64)
-openssl rand -base64 32
-
-# NEXTAUTH_SECRET (32 bytes base64)
-openssl rand -base64 32
+npm run db:generate
+npm run db:migrate
+npm run seed:superadmin -- "<email>" "<password>"
 ```
 
-Mínimo imprescindible para arrancar en local:
-
-- `TURSO_DATABASE_URL`
-- `TURSO_AUTH_TOKEN`
-- `ENCRYPTION_KEY`
-- `SEARCH_HMAC_KEY`
-- `NEXTAUTH_SECRET`
-- `NEXTAUTH_URL=http://localhost:3000`
-- `APP_URL=http://localhost:3000`
-
-### 4. Generar y aplicar migraciones a Turso
-
-```bash
-npm run db:generate   # genera SQL en ./drizzle desde src/db/schema.ts
-npm run db:migrate    # aplica el SQL contra Turso
-```
-
-### 5. Arrancar
-
+### 4. Arrancar
 ```bash
 npm run dev
 ```
 
-Accede a [http://localhost:3000](http://localhost:3000).
+### 5. Tests
+```bash
+npm run test            # Vitest
+npm run typecheck       # TS estricto
+npm run build           # Next build (también en CI)
+```
 
 ---
 
 ## ☁️ Despliegue en Vercel
 
-### 1. Conectar el repositorio
+1. **Importa el repo**: <https://github.com/Andreh33/empre.git>.
+2. **Framework Preset**: Next.js (autodetectado).
+3. **Compute Region**: `fra1` (Frankfurt) o `dub1` (Dublín).
+4. **Variables de entorno** (Production y Preview): copia las del `.env.example`. Marca como _Sensitive_ las claves criptográficas.
+5. **Vercel Blob**: Project → Storage → Connect Blob (UE).
+6. **Cada push a `main` redeploy automático**. Cada PR genera una preview URL.
 
-1. Entra en [vercel.com/new](https://vercel.com/new).
-2. Importa `https://github.com/Andreh33/empre.git`.
-3. **Framework Preset:** Next.js (autodetectado).
-4. **Root Directory:** `./` (raíz del repo).
-5. **Build Command:** `npm run build` (por defecto).
-6. **Install Command:** `npm install`.
-
-### 2. Configurar la región (compute)
-
-En **Project → Settings → Functions → Region**, selecciona:
-
-- `fra1` (Frankfurt) — recomendado, latencia mínima desde España.
-- alternativa: `dub1` (Dublín) — más cerca de Turso.
-
-### 3. Variables de entorno en Vercel
-
-En **Project → Settings → Environment Variables**, añade **todas** las variables del `.env.example` para los tres entornos (Production, Preview, Development). Marca como _Sensitive_ las claves criptográficas (`ENCRYPTION_KEY`, `SEARCH_HMAC_KEY`, `NEXTAUTH_SECRET`, `TURSO_AUTH_TOKEN`, etc.).
-
-> ⚠️ Si rotas `ENCRYPTION_KEY` después de tener datos cifrados, los datos se vuelven irrecuperables hasta que implementes versión de clave + re-cifrado. **No la toques sin un plan de rotación**.
-
-### 4. Despliegue automático
-
-Cada push a `main` lanza un build de producción. Cada PR genera una preview URL.
+> ⚠️ Si rotas `ENCRYPTION_KEY` después de tener datos cifrados, no podrán descifrarse. Cualquier rotación requiere un script de re-cifrado previo.
 
 ---
 
-## 📦 Comandos útiles
+## 🤖 CI/CD
 
-```bash
-npm run dev           # arranca Next.js en modo desarrollo
-npm run build         # build de producción
-npm run start         # sirve el build (post-build)
-npm run lint          # ESLint
-npm run typecheck     # TS sin emit
-npm run format        # Prettier (auto-fix)
-npm run format:check  # Prettier (check)
-npm run db:generate   # genera migraciones desde schema.ts
-npm run db:migrate    # aplica migraciones a Turso
-npm run db:studio     # abre Drizzle Studio (UI BBDD)
-```
+`.github/workflows/ci.yml` corre lint + typecheck + tests + build en cada push y PR a `main` con secretos dummy. Vercel se encarga del deploy real.
 
 ---
 
-## 🗺️ Roadmap
+## 📊 Monitorización (recomendado en producción)
 
-- [x] **Fase 1 — Cimientos** (este commit): Next.js + TS + Tailwind + shadcn/ui, Turso + Drizzle, esquema BD, headers de seguridad, libs de cifrado y validación de DNI/NIE/CIF, README.
-- [ ] **Fase 2 — Auth y roles:** registro con verificación email, login con bloqueo + Turnstile, 2FA TOTP, recuperación, middleware de protección por rol.
-- [ ] **Fase 3 — Datos del cliente:** formularios completos con Zod, cifrado de campos sensibles, registro de consentimientos.
-- [ ] **Fase 4 — Gestión documental:** carpetas, subida cifrada con antivirus, categorización, estados, previsualización, mensajes adjuntos.
-- [ ] **Fase 5 — Chat y notificaciones:** mensajería bidireccional, push (Web Push) + email, plantillas.
-- [ ] **Fase 6 — Calendario fiscal y notas internas.**
-- [ ] **Fase 7 — RGPD y auditoría:** logs, exportación Art. 15, baja Art. 17, banner de cookies granular.
-- [ ] **Fase 8 — PWA y pulido:** service worker, manifest, offline, Lighthouse > 90, Vitest + Playwright.
-- [ ] **Fase 9 — Despliegue final:** GitHub Actions, dominio, Sentry, backups documentados.
+- **Vercel Analytics**: activar desde el dashboard.
+- **Sentry** (opcional): añade `SENTRY_DSN` y wrappea con `@sentry/nextjs` (out of scope; se conecta por SDK install).
+- **Uptime**: Better Uptime, UptimeRobot o Pingdom — apuntando a `/login` y a un endpoint `/api/health` (a crear si lo necesitas).
+
+---
+
+## 🧷 Backups y restauración
+
+1. **Turso**: ya hace replicación geográfica. Para snapshot: `turso db shell asesoria-andreh ".dump" > backup-$(date +%F).sql` desde un cron.
+2. **Vercel Blob**: copia incremental nocturna a S3 EU mediante Action que liste `/api/files` y guarde el blob cifrado tal cual (es ya AES-GCM, no se necesita re-cifrar).
+3. **Test mensual**: restaurar Turso a una base alternativa y verificar que un archivo se descarga e incluye su SHA-256 original.
 
 ---
 
 ## ⚖️ Cumplimiento legal
 
-Las plantillas de privacidad, aviso legal, cookies y términos llegan en la **Fase 7** y deben ser revisadas por un abogado especializado antes de salir a producción.
+Plantillas iniciales en `/legal/privacidad`, `/legal/aviso-legal`, `/legal/cookies`, `/legal/terminos`. **Deben ser revisadas por abogado especializado** antes de producción. Faltan campos para cumplimentar: NIF, dirección, registro mercantil, email/teléfono.
 
 ---
 
-## 🤝 Primer push al repositorio
+## 🗺️ Roadmap completado
 
-Desde la raíz del proyecto:
+- [x] **Fase 1 — Cimientos**
+- [x] **Fase 2 — Auth y roles** (Argon2id, 2FA, lockout, recuperación)
+- [x] **Fase 3 — Datos del cliente** (DNI/NIE/CIF/IBAN cifrados, sociedad)
+- [x] **Fase 4 — Gestión documental** (cifrado por archivo, antivirus, ZIP)
+- [x] **Fase 5 — Chat y notificaciones** (admin↔cliente, email Resend, plantillas)
+- [x] **Fase 6 — Calendario fiscal** (genéricos AEAT precargados + personalizados, notas internas)
+- [x] **Fase 7 — RGPD** (export Art.15, baja Art.17, banner cookies granular, páginas legales)
+- [x] **Fase 8 — PWA y tests** (manifest, service worker, iconos, Vitest)
+- [x] **Fase 9 — CI/CD** (GitHub Actions con lint+typecheck+test+build)
 
-```bash
-git init
-git add .
-git commit -m "Fase 1: cimientos del proyecto (Next.js, Turso, Drizzle, seguridad base)"
-git branch -M main
-git remote add origin https://github.com/Andreh33/empre.git
-git push -u origin main
-```
+### Cosas pendientes para producción real
 
-Si el remoto ya existe (`fatal: remote origin already exists`), usa `git remote set-url origin https://github.com/Andreh33/empre.git`.
+- Rellenar NIF, dirección y datos registrales en plantillas legales.
+- Conectar `RESEND_API_KEY`, `BLOB_READ_WRITE_TOKEN`, `TURNSTILE_*`, `UPSTASH_*`, `VIRUSTOTAL_API_KEY` en Vercel.
+- Configurar dominio propio y certificado.
+- Sentry SDK (`npx @sentry/wizard@latest -i nextjs`) si se desea telemetría.
+- Cron diario de borrado físico de cuentas con `deletionScheduledFor < now()`.
+- Cron diario de envío de recordatorios fiscales (`fiscalEvents` con `recordatorioDiasAntes`).
+- Auditoría de seguridad por terceros (pentest).
 
 ---
 
-_Construido por encargo de Juan García. Pendiente de auditoría legal y de seguridad antes de producción._
+_Construido por encargo de Juan García. Revisión legal y de seguridad pendiente._

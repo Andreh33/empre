@@ -1,0 +1,28 @@
+{
+  "name": "Asesoria Empresarial Juan Garcia S.L.",
+  "short_name": "Juan Garcia",
+  "description": "Plataforma segura para clientes de la asesoria.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#0F2A47",
+  "theme_color": "#0F2A47",
+  "lang": "es-ES",
+  "dir": "ltr",
+  "categories": ["business", "finance", "productivity"],
+  "icons": [
+    {
+      "src": "/icons/icon-192.svg",
+      "sizes": "192x192",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/icons/icon-512.svg",
+      "sizes": "512x512",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
