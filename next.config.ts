@@ -5,7 +5,7 @@ import type { NextConfig } from "next";
  *
  * CSP: estricta. Permite blob/data para previsualizacion de PDFs/imagenes
  * locales y conexion a Vercel Blob, Turso y Turnstile.
- * Si en el futuro anyades dominios CDN o analytics, ampliar las directivas.
+ * Si en el futuro añades dominios CDN o analytics, ampliar las directivas.
  */
 const ContentSecurityPolicy = [
   "default-src 'self'",

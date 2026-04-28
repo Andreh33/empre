@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { requireSession } from "@/lib/guards";
+import { ChangePasswordForm } from "@/components/auth/change-password-form";
 
 export const metadata: Metadata = { title: "Seguridad" };
 
@@ -13,11 +14,13 @@ export default async function SeguridadPage() {
       </div>
 
       <section className="space-y-4 rounded-lg border bg-card p-5">
-        <h2 className="text-lg font-semibold">Cambiar contraseña</h2>
-        <p className="text-sm text-muted-foreground">
-          Si necesitas cambiar tu contraseña usa el flujo &quot;La he olvidado&quot; desde la pagina
-          de acceso.
-        </p>
+        <div>
+          <h2 className="text-lg font-semibold">Cambiar contraseña</h2>
+          <p className="text-sm text-muted-foreground">
+            Introduce tu contraseña actual y elige una nueva.
+          </p>
+        </div>
+        <ChangePasswordForm />
       </section>
     </div>
   );

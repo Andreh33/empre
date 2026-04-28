@@ -22,7 +22,7 @@ export function RegisterForm() {
     startTransition(async () => {
       const res = await registerAction(fd);
       if (res.ok) {
-        router.replace("/panel");
+        router.replace("/panel/documentos");
         router.refresh();
         return;
       }

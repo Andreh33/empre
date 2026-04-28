@@ -28,7 +28,8 @@ export function LoginForm({ variant = "client" }: Props) {
       if (res.ok) {
         const role = res.data?.role;
         const target =
-          callbackUrl ?? (role === "ADMIN" || role === "SUPER_ADMIN" ? "/admin" : "/panel");
+          callbackUrl ??
+          (role === "ADMIN" || role === "SUPER_ADMIN" ? "/admin" : "/panel/documentos");
         router.replace(target);
         router.refresh();
         return;

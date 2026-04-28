@@ -89,13 +89,16 @@ export function ProfileForm({
   return (
     <form onSubmit={submit} className="space-y-6" noValidate>
       <fieldset className="space-y-4">
-        <legend className="text-sm font-semibold text-muted-foreground">Datos personales</legend>
+        <legend className="text-sm font-semibold text-muted-foreground">
+          Datos personales{" "}
+          <span className="font-normal text-xs">(* obligatorios)</span>
+        </legend>
         <div className="grid gap-4 md:grid-cols-2">
-          <Field label="Nombre" name="nombre" defaultValue={initial.nombre} error={fieldErr("nombre")} required />
-          <Field label="Apellidos" name="apellidos" defaultValue={initial.apellidos} error={fieldErr("apellidos")} required />
+          <Field label="Nombre *" name="nombre" defaultValue={initial.nombre} error={fieldErr("nombre")} required />
+          <Field label="Apellidos" name="apellidos" defaultValue={initial.apellidos} error={fieldErr("apellidos")} />
           {!hideSensitive ? (
             <Field
-              label="DNI / NIE"
+              label="DNI / NIE *"
               name="dni"
               defaultValue={initial.dni}
               error={fieldErr("dni")}
@@ -106,7 +109,7 @@ export function ProfileForm({
             />
           ) : null}
           <Field
-            label="Telefono"
+            label="Teléfono *"
             name="telefono"
             type="tel"
             defaultValue={initial.telefono}
@@ -120,31 +123,29 @@ export function ProfileForm({
             type="date"
             defaultValue={initial.fechaNacimiento}
             error={fieldErr("fechaNacimiento")}
-            required
           />
         </div>
       </fieldset>
 
       <fieldset className="space-y-4">
-        <legend className="text-sm font-semibold text-muted-foreground">Direccion</legend>
+        <legend className="text-sm font-semibold text-muted-foreground">Dirección (opcional)</legend>
         <div className="grid gap-4 md:grid-cols-3">
           <div className="md:col-span-2">
-            <Field label="Calle" name="calle" defaultValue={initial.calle} error={fieldErr("calle")} required />
+            <Field label="Calle" name="calle" defaultValue={initial.calle} error={fieldErr("calle")} />
           </div>
-          <Field label="Numero" name="numero" defaultValue={initial.numero} error={fieldErr("numero")} required />
+          <Field label="Número" name="numero" defaultValue={initial.numero} error={fieldErr("numero")} />
           <Field label="Piso / puerta" name="piso" defaultValue={initial.piso} error={fieldErr("piso")} />
           <Field
-            label="Codigo postal"
+            label="Código postal"
             name="codigoPostal"
             defaultValue={initial.codigoPostal}
             onChange={onCpChange}
             error={fieldErr("codigoPostal")}
-            required
             inputMode="numeric"
             pattern="\d{5}"
             maxLength={5}
           />
-          <Field label="Ciudad" name="ciudad" defaultValue={initial.ciudad} error={fieldErr("ciudad")} required />
+          <Field label="Ciudad" name="ciudad" defaultValue={initial.ciudad} error={fieldErr("ciudad")} />
           <div className="space-y-2">
             <Label htmlFor="provincia">Provincia</Label>
             <Select
@@ -152,7 +153,6 @@ export function ProfileForm({
               name="provincia"
               value={provincia}
               onChange={(e) => setProvincia(e.target.value)}
-              required
             >
               <option value="">Selecciona...</option>
               {PROVINCIAS_LIST.map((p) => (
@@ -171,7 +171,7 @@ export function ProfileForm({
 
       <fieldset className="space-y-4">
         <legend className="text-sm font-semibold text-muted-foreground">
-          Datos opcionales
+          Datos adicionales (opcional)
         </legend>
         <div className="grid gap-4 md:grid-cols-2">
           <div className="space-y-2">
@@ -185,9 +185,9 @@ export function ProfileForm({
               ))}
             </Select>
           </div>
-          <Field label="Profesion" name="profesion" defaultValue={initial.profesion} />
+          <Field label="Profesión" name="profesion" defaultValue={initial.profesion} />
           <div className="space-y-2">
-            <Label htmlFor="situacionLaboral">Situacion laboral</Label>
+            <Label htmlFor="situacionLaboral">Situación laboral</Label>
             <Select
               id="situacionLaboral"
               name="situacionLaboral"
@@ -202,10 +202,10 @@ export function ProfileForm({
             </Select>
           </div>
           <Field
-            label="Numero Seguridad Social"
+            label="Número Seguridad Social"
             name="nss"
             defaultValue={initial.nss}
-            placeholder="12 digitos"
+            placeholder="12 dígitos"
             inputMode="numeric"
             error={fieldErr("nss")}
           />

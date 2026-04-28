@@ -1,11 +1,8 @@
 /**
  * Schemas Zod del perfil de cliente. Compartidos entre cliente y servidor.
  *
- * Notas:
- * - Usamos z.preprocess con `emptyToUndefined` en los enums opcionales para
- *   que el formulario pueda enviar "" sin romper la validacion y, al mismo
- *   tiempo, conservar los tipos literales en la salida (necesario para
- *   columnas Drizzle con `enum`).
+ * Política de obligatoriedad: solo nombre, DNI y teléfono son obligatorios.
+ * El resto de campos son opcionales — si vienen vacíos se guardan como "".
  */
 import { z } from "zod";
 import {
@@ -22,9 +19,12 @@ const trimmed = () => z.string().trim();
 const emptyToUndefined = (v: unknown) =>
   typeof v === "string" && v.trim().length === 0 ? undefined : v;
 
-// Campos obligatorios pero potencialmente vacios desde el form: aplican
-// preprocess para tratar "" como ausente y dejar que el `min(1)` o el `enum`
-// fallen con el mensaje apropiado.
+// Helper para campos de texto opcionales: trim + "" → undefined, max length opcional.
+const optionalText = (max?: number) =>
+  z.preprocess(
+    emptyToUndefined,
+    max ? z.string().trim().max(max).optional() : z.string().trim().optional(),
+  );
 
 // Identificadores españoles.
 const dniNieSchema = z
@@ -34,7 +34,7 @@ const dniNieSchema = z
   .refine((v) => {
     const r = detectAndValidate(v);
     return r.valid && (r.kind === "DNI" || r.kind === "NIE");
-  }, "DNI/NIE invalido (revisa la letra de control)");
+  }, "DNI/NIE inválido (revisa la letra de control)");
 
 const cifSchema = z
   .string()
@@ -43,7 +43,7 @@ const cifSchema = z
   .refine((v) => {
     const r = detectAndValidate(v);
     return r.valid && r.kind === "CIF";
-  }, "CIF invalido (revisa la letra/digito de control)");
+  }, "CIF inválido (revisa la letra/dígito de control)");
 
 const ibanSchema = z
   .string()
@@ -55,51 +55,68 @@ const nssSchema = z
   .string()
   .trim()
   .transform((v) => v.replace(/[\s/-]/g, ""))
-  .pipe(z.string().regex(/^\d{12}$/, "Numero de Seguridad Social invalido (12 digitos)"));
+  .pipe(z.string().regex(/^\d{12}$/, "Número de Seguridad Social inválido (12 dígitos)"));
 
 const telefonoSchema = trimmed().regex(
   /^\+?\d{9,15}$/,
-  "Telefono invalido (9-15 digitos, opcional +)",
+  "Teléfono inválido (9-15 dígitos, opcional +)",
 );
 
-const cpSchema = trimmed().regex(/^\d{5}$/, "Codigo postal invalido (5 digitos)");
+const cpSchemaOpt = z.preprocess(
+  emptyToUndefined,
+  z
+    .string()
+    .trim()
+    .regex(/^\d{5}$/, "Código postal inválido (5 dígitos)")
+    .optional(),
+);
 
-const fechaNacimientoSchema = trimmed()
-  .regex(/^\d{4}-\d{2}-\d{2}$/, "Formato YYYY-MM-DD")
-  .refine((v) => {
-    const d = new Date(v);
-    if (Number.isNaN(d.getTime())) return false;
-    const now = new Date();
-    const min = new Date(now.getFullYear() - 120, now.getMonth(), now.getDate());
-    const max = new Date(now.getFullYear() - 18, now.getMonth(), now.getDate());
-    return d >= min && d <= max;
-  }, "Debes ser mayor de edad y la fecha debe ser plausible");
+const fechaNacimientoSchemaOpt = z.preprocess(
+  emptyToUndefined,
+  z
+    .string()
+    .trim()
+    .regex(/^\d{4}-\d{2}-\d{2}$/, "Formato YYYY-MM-DD")
+    .refine((v) => {
+      const d = new Date(v);
+      if (Number.isNaN(d.getTime())) return false;
+      const now = new Date();
+      const min = new Date(now.getFullYear() - 120, now.getMonth(), now.getDate());
+      const max = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+      return d >= min && d <= max;
+    }, "Fecha no válida")
+    .optional(),
+);
 
-const provinciaSchema = trimmed().refine(
-  (v) => PROVINCIAS_LIST.includes(v),
-  "Provincia no reconocida",
+const provinciaSchemaOpt = z.preprocess(
+  emptyToUndefined,
+  z
+    .string()
+    .trim()
+    .refine((v) => PROVINCIAS_LIST.includes(v), "Provincia no reconocida")
+    .optional(),
 );
 
 // ---------------------------------------------------------------------
-// Schema base.
+// Schema base. Solo nombre, dni y teléfono son obligatorios.
 // ---------------------------------------------------------------------
 export const baseProfileSchema = z.object({
-  nombre: trimmed().min(2, "Minimo 2").max(80, "Maximo 80"),
-  apellidos: trimmed().min(2, "Minimo 2").max(120, "Maximo 120"),
+  nombre: trimmed().min(2, "Mínimo 2 caracteres").max(80, "Máximo 80"),
+  apellidos: optionalText(120),
   dni: dniNieSchema,
   telefono: telefonoSchema,
-  fechaNacimiento: fechaNacimientoSchema,
+  fechaNacimiento: fechaNacimientoSchemaOpt,
 
-  calle: trimmed().min(2).max(120),
-  numero: trimmed().min(1).max(10),
-  piso: z.preprocess(emptyToUndefined, z.string().max(20).optional()),
-  codigoPostal: cpSchema,
-  ciudad: trimmed().min(2).max(80),
-  provincia: provinciaSchema,
+  calle: optionalText(120),
+  numero: optionalText(10),
+  piso: optionalText(20),
+  codigoPostal: cpSchemaOpt,
+  ciudad: optionalText(80),
+  provincia: provinciaSchemaOpt,
   pais: trimmed().length(2).default("ES"),
 
   estadoCivil: z.preprocess(emptyToUndefined, z.enum(ESTADOS_CIVILES).optional()),
-  profesion: z.preprocess(emptyToUndefined, z.string().max(120).optional()),
+  profesion: optionalText(120),
   situacionLaboral: z.preprocess(emptyToUndefined, z.enum(SITUACIONES_LABORALES).optional()),
 
   nss: z.preprocess(emptyToUndefined, nssSchema.optional()),
@@ -108,9 +125,9 @@ export const baseProfileSchema = z.object({
   tipoCliente: z.enum(TIPOS_CLIENTE).default("PARTICULAR"),
 
   cif: z.preprocess(emptyToUndefined, cifSchema.optional()),
-  razonSocial: z.preprocess(emptyToUndefined, z.string().max(200).optional()),
+  razonSocial: optionalText(200),
   formaJuridica: z.preprocess(emptyToUndefined, z.enum(FORMAS_JURIDICAS).optional()),
-  domicilioFiscal: z.preprocess(emptyToUndefined, z.string().max(200).optional()),
+  domicilioFiscal: optionalText(200),
 });
 
 export const profileSchema = baseProfileSchema.superRefine((data, ctx) => {

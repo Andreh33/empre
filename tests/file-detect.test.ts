@@ -19,7 +19,7 @@ describe("checkFile", () => {
   it("acepta DOCX (zip container)", () => {
     expect(checkFile("contrato.docx", ZIP_HEAD, 100, 1024 * 1024).ok).toBe(true);
   });
-  it("rechaza tamanyo excesivo", () => {
+  it("rechaza tamaño excesivo", () => {
     expect(checkFile("renta.pdf", PDF_HEAD, 60 * 1024 * 1024, 50 * 1024 * 1024).ok).toBe(false);
   });
   it("rechaza magic distinto", () => {

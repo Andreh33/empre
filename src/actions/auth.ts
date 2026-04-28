@@ -13,7 +13,7 @@ import { db, schema } from "@/db";
 import { emailHash } from "@/lib/crypto";
 import { env } from "@/lib/env";
 import { getRequestMeta } from "@/lib/request-context";
-import { hashPassword, passwordSchema } from "@/services/password";
+import { hashPassword, passwordSchema, verifyPassword } from "@/services/password";
 import { generateToken, hashToken, isExpired, isoFromNow } from "@/services/tokens";
 import { sendEmail, passwordResetTemplate } from "@/services/mail";
 import { logAudit } from "@/services/audit";
@@ -305,6 +305,63 @@ export async function loginAction(
     .limit(1);
 
   return { ok: true, data: { role: (user?.role ?? "CLIENT") as "SUPER_ADMIN" | "ADMIN" | "CLIENT" } };
+}
+
+// ---------------------------------------------------------------------
+// CAMBIAR CONTRASEÑA (usuario autenticado, sin email).
+// ---------------------------------------------------------------------
+const changePasswordSchema = z
+  .object({
+    currentPassword: z.string().min(1, "Indica tu contraseña actual"),
+    newPassword: passwordSchema,
+    confirmNewPassword: z
+      .string()
+      .transform((v) => v.normalize("NFC").replace(/^\s+|\s+$/g, "")),
+  })
+  .refine((d) => d.newPassword === d.confirmNewPassword, {
+    path: ["confirmNewPassword"],
+    message: "Las contraseñas no coinciden",
+  });
+
+export async function changePasswordAction(formData: FormData): Promise<ActionResult> {
+  const session = await auth();
+  if (!session?.user?.id) return fail("UNAUTHORIZED", "Inicia sesión");
+
+  const parsed = changePasswordSchema.safeParse(Object.fromEntries(formData.entries()));
+  if (!parsed.success) {
+    return fail("VALIDATION", "Revisa los campos", parsed.error.flatten().fieldErrors);
+  }
+
+  const [user] = await db
+    .select({ passwordHash: schema.users.passwordHash })
+    .from(schema.users)
+    .where(eq(schema.users.id, session.user.id))
+    .limit(1);
+  if (!user) return fail("UNAUTHORIZED", "Sesión no válida");
+
+  const ok = await verifyPassword(user.passwordHash, normalizePassword(parsed.data.currentPassword));
+  if (!ok) {
+    return fail("INVALID_CREDENTIALS", "La contraseña actual no es correcta", {
+      currentPassword: ["Contraseña incorrecta"],
+    });
+  }
+
+  const newHash = await hashPassword(parsed.data.newPassword);
+  await db
+    .update(schema.users)
+    .set({ passwordHash: newHash, updatedAt: new Date().toISOString() })
+    .where(eq(schema.users.id, session.user.id));
+
+  const meta = await getRequestMeta();
+  await logAudit({
+    userId: session.user.id,
+    accion: "PASSWORD_RESET_OK",
+    ip: meta.ip,
+    userAgent: meta.userAgent,
+    metadata: { source: "self_change" },
+  });
+
+  return { ok: true };
 }
 
 // ---------------------------------------------------------------------
