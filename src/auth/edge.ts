@@ -26,6 +26,20 @@ export const edgeAuthConfig: NextAuthConfig = {
   },
   providers: [],
   callbacks: {
+    // Trasvasar campos del JWT al objeto session.user para que el middleware
+    // pueda leer auth.user.id y auth.user.role.
+    async session({ session, token }) {
+      if (token?.error) {
+        return { ...session, expires: new Date(0).toISOString() };
+      }
+      session.user = {
+        ...session.user,
+        id: (token?.userId as string) ?? "",
+        role: (token?.role as "SUPER_ADMIN" | "ADMIN" | "CLIENT") ?? "CLIENT",
+        twoFactorEnabled: false,
+      };
+      return session;
+    },
     authorized({ auth, request }) {
       const path = request.nextUrl.pathname;
       const isAuth = Boolean(auth?.user?.id);
