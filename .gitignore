@@ -52,3 +52,6 @@ Thumbs.db
 # Tests E2E
 playwright-report/
 test-results/
+
+.vercel
+.env*.local
