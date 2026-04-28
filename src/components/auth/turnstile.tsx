@@ -64,13 +64,7 @@ export function Turnstile({ siteKey, onToken }: Props) {
     }
   }, [siteKey, onToken]);
 
-  if (!siteKey) {
-    return (
-      <p className="text-xs text-muted-foreground">
-        CAPTCHA deshabilitado en desarrollo (configura TURNSTILE_SITE_KEY).
-      </p>
-    );
-  }
+  if (!siteKey) return null;
 
   return <div ref={ref} className="my-2" />;
 }
