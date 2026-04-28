@@ -24,7 +24,7 @@ export async function requestDeletionAction(formData: FormData): Promise<ActionR
   if (!session?.user?.id) return { ok: false, code: "UNAUTHORIZED", message: "Inicia sesion" };
 
   const parsed = requestDeletionSchema.safeParse({ password: formData.get("password") });
-  if (!parsed.success) return { ok: false, code: "VALIDATION", message: "Falta contrasenya" };
+  if (!parsed.success) return { ok: false, code: "VALIDATION", message: "Falta contraseña" };
 
   const [u] = await db
     .select()
@@ -34,7 +34,7 @@ export async function requestDeletionAction(formData: FormData): Promise<ActionR
   if (!u) return { ok: false, code: "NOT_FOUND", message: "Usuario no encontrado" };
 
   if (!(await verifyPassword(u.passwordHash, parsed.data.password))) {
-    return { ok: false, code: "INVALID_CREDENTIALS", message: "Contrasenya incorrecta" };
+    return { ok: false, code: "INVALID_CREDENTIALS", message: "Contraseña incorrecta" };
   }
 
   const now = new Date();

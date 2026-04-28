@@ -34,12 +34,6 @@ export default function CookiesPage() {
             <td className="p-2">Sesion</td>
           </tr>
           <tr className="border-t">
-            <td className="p-2 font-mono">cf_clearance</td>
-            <td className="p-2">Necesaria</td>
-            <td className="p-2">Verificacion CAPTCHA Turnstile</td>
-            <td className="p-2">30 dias</td>
-          </tr>
-          <tr className="border-t">
             <td className="p-2 font-mono">asesoria.cookies.v1</td>
             <td className="p-2">Necesaria</td>
             <td className="p-2">Almacenar tu preferencia de cookies</td>

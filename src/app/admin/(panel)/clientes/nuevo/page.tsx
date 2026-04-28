@@ -28,7 +28,7 @@ export default function NuevoClientePage() {
         <h1 className="text-2xl font-bold">Anyadir cliente</h1>
         <p className="text-sm text-muted-foreground">
           Crearemos la cuenta y enviaremos un email de invitacion para que el cliente elija su
-          contrasenya. El enlace caduca en 24 horas.
+          contraseña. El enlace caduca en 24 horas.
         </p>
       </div>
 

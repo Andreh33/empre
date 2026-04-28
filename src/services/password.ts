@@ -1,5 +1,5 @@
 /**
- * Hash y verificacion de contrasenyas con Argon2id.
+ * Hash y verificacion de contraseñas con Argon2id.
  *
  * Parametros: el preset de la libreria por defecto (Argon2id, t=3, m=64MB, p=4)
  * cumple OWASP 2023. Si el servidor de produccion tiene <= 1 vCPU, considerar
@@ -28,17 +28,15 @@ export async function verifyPassword(hash: string, plain: string): Promise<boole
 }
 
 /**
- * Politica de contrasenyas: minimo 12 caracteres, mayusculas, minusculas,
- * numeros y simbolos. Aplica en cliente y servidor (Zod compartido).
+ * Politica de contraseñas: minimo 6 caracteres. Normalizamos a NFC y eliminamos
+ * espacios en blanco al inicio/fin para evitar mismatches por copiar/pegar.
  */
 export const passwordSchema = z
   .string()
-  .min(12, "Minimo 12 caracteres")
-  .max(128, "Maximo 128 caracteres")
-  .refine((v) => /[a-z]/.test(v), "Debe contener al menos una minuscula")
-  .refine((v) => /[A-Z]/.test(v), "Debe contener al menos una mayuscula")
-  .refine((v) => /\d/.test(v), "Debe contener al menos un numero")
-  .refine(
-    (v) => /[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?~`]/.test(v),
-    "Debe contener al menos un simbolo",
+  .transform((v) => v.normalize("NFC").replace(/^\s+|\s+$/g, ""))
+  .pipe(
+    z
+      .string()
+      .min(6, "Minimo 6 caracteres")
+      .max(128, "Maximo 128 caracteres"),
   );

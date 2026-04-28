@@ -27,15 +27,13 @@ export default async function PanelHome() {
         <li className="rounded-lg border bg-card p-4">
           <p className="font-semibold">Seguridad</p>
           <p className="text-sm text-muted-foreground">
-            {session.user.twoFactorEnabled
-              ? "2FA activado. Tu cuenta esta protegida."
-              : "Activa la autenticacion en dos pasos."}
+            Cambia tu contraseña o gestiona tu privacidad.
           </p>
           <Link
             href="/panel/seguridad"
             className="mt-2 inline-block text-sm text-primary underline"
           >
-            Configurar
+            Ir a seguridad
           </Link>
         </li>
       </ul>

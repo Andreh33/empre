@@ -1,15 +1,10 @@
 "use server";
 
 /**
- * Server Actions de autenticacion: registro, recuperacion, verificacion email,
- * activacion 2FA, login y logout.
+ * Server Actions de autenticacion: registro (con login automatico),
+ * recuperacion de contraseña, login y logout.
  *
- * Cada accion:
- *   - valida con Zod
- *   - aplica rate-limit (auth o global)
- *   - verifica Turnstile cuando procede
- *   - registra en audit_logs
- *   - devuelve un FormResult para que la UI muestre errores especificos
+ * Cada accion valida con Zod y registra en audit_logs.
  */
 import { randomUUID } from "node:crypto";
 import { eq } from "drizzle-orm";
@@ -18,19 +13,10 @@ import { db, schema } from "@/db";
 import { emailHash } from "@/lib/crypto";
 import { env } from "@/lib/env";
 import { getRequestMeta } from "@/lib/request-context";
-import { hashPassword, passwordSchema, verifyPassword } from "@/services/password";
+import { hashPassword, passwordSchema } from "@/services/password";
 import { generateToken, hashToken, isExpired, isoFromNow } from "@/services/tokens";
-import { checkRateLimit } from "@/services/rate-limit";
-import { sendEmail, emailVerificationTemplate, passwordResetTemplate } from "@/services/mail";
-import { verifyTurnstile } from "@/services/turnstile";
+import { sendEmail, passwordResetTemplate } from "@/services/mail";
 import { logAudit } from "@/services/audit";
-import {
-  generateTotpQrDataUrl,
-  generateTotpSecret,
-  encryptTotpSecret,
-  decryptTotpSecret,
-  verifyTotpCode,
-} from "@/services/two-factor";
 import { signIn, signOut, auth } from "@/auth";
 import { AuthError as AuthJsError } from "next-auth";
 
@@ -38,9 +24,6 @@ export type ActionResult<T = unknown> =
   | { ok: true; data?: T }
   | { ok: false; code: string; message: string; fieldErrors?: Record<string, string[]> };
 
-// ---------------------------------------------------------------------
-// Helpers internos
-// ---------------------------------------------------------------------
 function fail<T = unknown>(
   code: string,
   message: string,
@@ -49,16 +32,12 @@ function fail<T = unknown>(
   return { ok: false, code, message, fieldErrors };
 }
 
-async function ensureRateLimit(kind: "auth" | "global"): Promise<ActionResult | null> {
-  const { ip } = await getRequestMeta();
-  const rl = await checkRateLimit(kind, ip);
-  if (!rl.success) {
-    return fail(
-      "RATE_LIMITED",
-      "Demasiadas peticiones. Espera un momento e intentalo de nuevo.",
-    );
-  }
-  return null;
+// Normalizamos siempre antes de comparar contraseñas. Esto evita los
+// "Las contraseñas no coinciden" cuando el usuario pega texto con espacios
+// invisibles o caracteres en formas Unicode distintas.
+function normalizePassword(value: unknown): string {
+  if (typeof value !== "string") return "";
+  return value.normalize("NFC").replace(/^\s+|\s+$/g, "");
 }
 
 // ---------------------------------------------------------------------
@@ -68,20 +47,18 @@ const registerSchema = z
   .object({
     email: z.string().email("Email invalido").max(254).toLowerCase(),
     password: passwordSchema,
-    confirmPassword: z.string(),
+    confirmPassword: z.string().transform((v) => v.normalize("NFC").replace(/^\s+|\s+$/g, "")),
     privacyConsent: z.literal("on", { errorMap: () => ({ message: "Debes aceptar la politica de privacidad" }) }),
     termsConsent: z.literal("on", { errorMap: () => ({ message: "Debes aceptar los terminos" }) }),
-    turnstileToken: z.string().optional(),
   })
   .refine((d) => d.password === d.confirmPassword, {
     path: ["confirmPassword"],
-    message: "Las contrasenyas no coinciden",
+    message: "Las contraseñas no coinciden",
   });
 
-export async function registerAction(formData: FormData): Promise<ActionResult> {
-  const rl = await ensureRateLimit("auth");
-  if (rl) return rl;
-
+export async function registerAction(
+  formData: FormData,
+): Promise<ActionResult<{ role: "SUPER_ADMIN" | "ADMIN" | "CLIENT" }>> {
   const raw = Object.fromEntries(formData.entries());
   const parsed = registerSchema.safeParse(raw);
   if (!parsed.success) {
@@ -89,9 +66,6 @@ export async function registerAction(formData: FormData): Promise<ActionResult> 
   }
 
   const { ip, userAgent } = await getRequestMeta();
-  const captchaOk = await verifyTurnstile(parsed.data.turnstileToken ?? "", ip);
-  if (!captchaOk) return fail("CAPTCHA", "Verificacion CAPTCHA fallida");
-
   const email = parsed.data.email;
   const hash = emailHash(email);
 
@@ -102,30 +76,23 @@ export async function registerAction(formData: FormData): Promise<ActionResult> 
     .limit(1);
 
   if (existing && !existing.deletedAt) {
-    // No revelamos existencia exacta: respondemos OK como si todo fuera bien
-    // y dejamos que el cliente reciba/no reciba email. (Defensa contra enumeracion.)
-    return { ok: true };
+    return fail("EMAIL_TAKEN", "Ya existe una cuenta con ese email. Inicia sesion.");
   }
 
   const userId = existing?.id ?? randomUUID();
   const passwordHash = await hashPassword(parsed.data.password);
-
-  // Si no hay servicio de email configurado, auto-verificamos para no
-  // dejar al usuario atrapado sin posibilidad de recibir el token.
-  const autoVerify = !env.RESEND_API_KEY;
-  const verifyTimestamp = autoVerify ? new Date().toISOString() : null;
+  const nowIso = new Date().toISOString();
 
   if (existing) {
-    // Reactivar cuenta marcada como borrada (caso reset).
     await db
       .update(schema.users)
       .set({
         passwordHash,
-        emailVerified: autoVerify,
-        emailVerifiedAt: verifyTimestamp,
+        emailVerified: true,
+        emailVerifiedAt: nowIso,
         deletedAt: null,
         deletionScheduledFor: null,
-        updatedAt: new Date().toISOString(),
+        updatedAt: nowIso,
       })
       .where(eq(schema.users.id, userId));
   } else {
@@ -135,8 +102,8 @@ export async function registerAction(formData: FormData): Promise<ActionResult> 
       emailHash: hash,
       passwordHash,
       role: "CLIENT",
-      emailVerified: autoVerify,
-      emailVerifiedAt: verifyTimestamp,
+      emailVerified: true,
+      emailVerifiedAt: nowIso,
     });
   }
 
@@ -163,25 +130,7 @@ export async function registerAction(formData: FormData): Promise<ActionResult> 
     },
   ]);
 
-  // Token de verificacion (1 hora) solo si hay servicio de email.
-  if (!autoVerify) {
-    const token = generateToken();
-    await db.insert(schema.emailVerificationTokens).values({
-      id: randomUUID(),
-      userId,
-      tokenHash: hashToken(token),
-      expiresAt: isoFromNow(60 * 60 * 1000),
-    });
-    const verifyUrl = `${env.APP_URL}/verificar?token=${token}`;
-    await sendEmail({ to: email, ...emailVerificationTemplate(verifyUrl) });
-  }
-
-  await logAudit({
-    userId,
-    accion: "USER_CREATED",
-    ip,
-    userAgent,
-  });
+  await logAudit({ userId, accion: "USER_CREATED", ip, userAgent });
   await logAudit({
     userId,
     accion: "CONSENT_GIVEN",
@@ -190,55 +139,23 @@ export async function registerAction(formData: FormData): Promise<ActionResult> 
     metadata: { types: ["PRIVACIDAD", "TERMINOS"], version: consentVersion },
   });
 
-  return { ok: true };
-}
-
-// ---------------------------------------------------------------------
-// VERIFICAR EMAIL
-// ---------------------------------------------------------------------
-const verifyEmailSchema = z.object({ token: z.string().min(20).max(200) });
-
-export async function verifyEmailAction(formData: FormData): Promise<ActionResult> {
-  const rl = await ensureRateLimit("auth");
-  if (rl) return rl;
-
-  const parsed = verifyEmailSchema.safeParse({ token: formData.get("token") });
-  if (!parsed.success) return fail("VALIDATION", "Token invalido");
-
-  const tokenHash = hashToken(parsed.data.token);
-  const [record] = await db
-    .select()
-    .from(schema.emailVerificationTokens)
-    .where(eq(schema.emailVerificationTokens.tokenHash, tokenHash))
-    .limit(1);
-
-  if (!record || record.usedAt || isExpired(record.expiresAt)) {
-    return fail("INVALID_TOKEN", "Enlace invalido o caducado. Solicita uno nuevo.");
+  // Login automatico tras registrar.
+  try {
+    await signIn("credentials", {
+      email,
+      password: parsed.data.password,
+      ip,
+      userAgent,
+      redirect: false,
+    });
+  } catch (err) {
+    if (err instanceof AuthJsError) {
+      return fail("AUTO_LOGIN_FAILED", "Cuenta creada. Inicia sesion para continuar.");
+    }
+    throw err;
   }
 
-  await db
-    .update(schema.users)
-    .set({
-      emailVerified: true,
-      emailVerifiedAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-    })
-    .where(eq(schema.users.id, record.userId));
-
-  await db
-    .update(schema.emailVerificationTokens)
-    .set({ usedAt: new Date().toISOString() })
-    .where(eq(schema.emailVerificationTokens.id, record.id));
-
-  const meta = await getRequestMeta();
-  await logAudit({
-    userId: record.userId,
-    accion: "EMAIL_VERIFIED",
-    ip: meta.ip,
-    userAgent: meta.userAgent,
-  });
-
-  return { ok: true };
+  return { ok: true, data: { role: "CLIENT" } };
 }
 
 // ---------------------------------------------------------------------
@@ -246,20 +163,13 @@ export async function verifyEmailAction(formData: FormData): Promise<ActionResul
 // ---------------------------------------------------------------------
 const passwordResetRequestSchema = z.object({
   email: z.string().email().max(254).toLowerCase(),
-  turnstileToken: z.string().optional(),
 });
 
 export async function requestPasswordResetAction(formData: FormData): Promise<ActionResult> {
-  const rl = await ensureRateLimit("auth");
-  if (rl) return rl;
-
   const parsed = passwordResetRequestSchema.safeParse(Object.fromEntries(formData.entries()));
   if (!parsed.success) return fail("VALIDATION", "Email invalido");
 
   const { ip, userAgent } = await getRequestMeta();
-  const captchaOk = await verifyTurnstile(parsed.data.turnstileToken ?? "", ip);
-  if (!captchaOk) return fail("CAPTCHA", "Verificacion CAPTCHA fallida");
-
   const hash = emailHash(parsed.data.email);
   const [user] = await db
     .select({ id: schema.users.id, email: schema.users.email })
@@ -267,7 +177,6 @@ export async function requestPasswordResetAction(formData: FormData): Promise<Ac
     .where(eq(schema.users.emailHash, hash))
     .limit(1);
 
-  // Anti-enumeracion: respondemos OK siempre.
   if (!user) return { ok: true };
 
   const token = generateToken();
@@ -292,23 +201,20 @@ export async function requestPasswordResetAction(formData: FormData): Promise<Ac
 }
 
 // ---------------------------------------------------------------------
-// CONFIRMAR NUEVA CONTRASENYA
+// CONFIRMAR NUEVA CONTRASEÑA
 // ---------------------------------------------------------------------
 const passwordResetConfirmSchema = z
   .object({
     token: z.string().min(20).max(200),
     password: passwordSchema,
-    confirmPassword: z.string(),
+    confirmPassword: z.string().transform((v) => v.normalize("NFC").replace(/^\s+|\s+$/g, "")),
   })
   .refine((d) => d.password === d.confirmPassword, {
     path: ["confirmPassword"],
-    message: "Las contrasenyas no coinciden",
+    message: "Las contraseñas no coinciden",
   });
 
 export async function confirmPasswordResetAction(formData: FormData): Promise<ActionResult> {
-  const rl = await ensureRateLimit("auth");
-  if (rl) return rl;
-
   const parsed = passwordResetConfirmSchema.safeParse(Object.fromEntries(formData.entries()));
   if (!parsed.success) {
     return fail("VALIDATION", "Revisa los campos", parsed.error.flatten().fieldErrors);
@@ -354,49 +260,32 @@ export async function confirmPasswordResetAction(formData: FormData): Promise<Ac
 }
 
 // ---------------------------------------------------------------------
-// LOGIN (wrapper sobre Auth.js para devolver errores tipados a la UI)
+// LOGIN
 // ---------------------------------------------------------------------
 const loginSchema = z.object({
   email: z.string().email().max(254).toLowerCase(),
   password: z.string().min(1).max(128),
-  totpCode: z.string().regex(/^\d{6}$/).optional().or(z.literal("")),
-  turnstileToken: z.string().optional(),
 });
 
-export async function loginAction(formData: FormData): Promise<ActionResult> {
-  const rl = await ensureRateLimit("auth");
-  if (rl) return rl;
-
+export async function loginAction(
+  formData: FormData,
+): Promise<ActionResult<{ role: "SUPER_ADMIN" | "ADMIN" | "CLIENT" }>> {
   const parsed = loginSchema.safeParse(Object.fromEntries(formData.entries()));
   if (!parsed.success) {
     return fail("VALIDATION", "Revisa los campos", parsed.error.flatten().fieldErrors);
   }
 
+  const password = normalizePassword(parsed.data.password);
   const { ip, userAgent } = await getRequestMeta();
-
-  // Si el usuario tiene >=3 fallos previos exigimos CAPTCHA.
-  const hash = emailHash(parsed.data.email);
-  const [u] = await db
-    .select({ failedLoginAttempts: schema.users.failedLoginAttempts })
-    .from(schema.users)
-    .where(eq(schema.users.emailHash, hash))
-    .limit(1);
-  const requireCaptcha = (u?.failedLoginAttempts ?? 0) >= 3;
-  if (requireCaptcha) {
-    const ok = await verifyTurnstile(parsed.data.turnstileToken ?? "", ip);
-    if (!ok) return fail("CAPTCHA", "Verificacion CAPTCHA fallida");
-  }
 
   try {
     await signIn("credentials", {
       email: parsed.data.email,
-      password: parsed.data.password,
-      totpCode: parsed.data.totpCode ?? "",
+      password,
       ip,
       userAgent,
       redirect: false,
     });
-    return { ok: true };
   } catch (err) {
     if (err instanceof AuthJsError) {
       const cause = err.cause as { err?: { code?: string; message?: string } } | undefined;
@@ -406,6 +295,16 @@ export async function loginAction(formData: FormData): Promise<ActionResult> {
     }
     throw err;
   }
+
+  // Recuperamos el rol para que el cliente sepa a donde redirigir.
+  const hash = emailHash(parsed.data.email);
+  const [user] = await db
+    .select({ role: schema.users.role })
+    .from(schema.users)
+    .where(eq(schema.users.emailHash, hash))
+    .limit(1);
+
+  return { ok: true, data: { role: (user?.role ?? "CLIENT") as "SUPER_ADMIN" | "ADMIN" | "CLIENT" } };
 }
 
 // ---------------------------------------------------------------------
@@ -423,124 +322,4 @@ export async function logoutAction(): Promise<void> {
     });
   }
   await signOut({ redirectTo: "/" });
-}
-
-// ---------------------------------------------------------------------
-// 2FA: empezar configuracion (devuelve secret + QR)
-// ---------------------------------------------------------------------
-export async function startTwoFactorSetupAction(): Promise<
-  ActionResult<{ secret: string; qrDataUrl: string }>
-> {
-  const session = await auth();
-  if (!session?.user?.id) return fail("UNAUTHORIZED", "Inicia sesion");
-
-  const secret = generateTotpSecret();
-  const qrDataUrl = await generateTotpQrDataUrl(session.user.email, secret);
-
-  // Guardamos el secret cifrado pero todavia con twoFactorEnabled=false hasta
-  // que el usuario verifique el primer codigo.
-  await db
-    .update(schema.users)
-    .set({
-      twoFactorSecret: encryptTotpSecret(secret),
-      twoFactorEnabled: false,
-      updatedAt: new Date().toISOString(),
-    })
-    .where(eq(schema.users.id, session.user.id));
-
-  return { ok: true, data: { secret, qrDataUrl } };
-}
-
-const confirmTwoFactorSchema = z.object({
-  code: z.string().regex(/^\d{6}$/, "Codigo de 6 digitos"),
-});
-
-export async function confirmTwoFactorSetupAction(formData: FormData): Promise<ActionResult> {
-  const session = await auth();
-  if (!session?.user?.id) return fail("UNAUTHORIZED", "Inicia sesion");
-
-  const parsed = confirmTwoFactorSchema.safeParse({ code: formData.get("code") });
-  if (!parsed.success) return fail("VALIDATION", "Codigo invalido");
-
-  const [user] = await db
-    .select({ twoFactorSecret: schema.users.twoFactorSecret })
-    .from(schema.users)
-    .where(eq(schema.users.id, session.user.id))
-    .limit(1);
-
-  if (!user?.twoFactorSecret) return fail("NO_SETUP", "No has iniciado la configuracion");
-
-  const decrypted = decryptTotpSecret(user.twoFactorSecret);
-  if (!verifyTotpCode(decrypted, parsed.data.code)) {
-    return fail("BAD_CODE", "Codigo incorrecto");
-  }
-
-  await db
-    .update(schema.users)
-    .set({
-      twoFactorEnabled: true,
-      updatedAt: new Date().toISOString(),
-    })
-    .where(eq(schema.users.id, session.user.id));
-
-  const meta = await getRequestMeta();
-  await logAudit({
-    userId: session.user.id,
-    accion: "TWO_FA_ENABLED",
-    ip: meta.ip,
-    userAgent: meta.userAgent,
-  });
-
-  return { ok: true };
-}
-
-const disableTwoFactorSchema = z.object({
-  password: z.string().min(1),
-  code: z.string().regex(/^\d{6}$/),
-});
-
-export async function disableTwoFactorAction(formData: FormData): Promise<ActionResult> {
-  const session = await auth();
-  if (!session?.user?.id) return fail("UNAUTHORIZED", "Inicia sesion");
-
-  // Admins no pueden desactivar 2FA.
-  if (session.user.role === "ADMIN" || session.user.role === "SUPER_ADMIN") {
-    return fail("FORBIDDEN", "Los administradores no pueden desactivar 2FA");
-  }
-
-  const parsed = disableTwoFactorSchema.safeParse(Object.fromEntries(formData.entries()));
-  if (!parsed.success) return fail("VALIDATION", "Revisa los campos");
-
-  const [user] = await db
-    .select()
-    .from(schema.users)
-    .where(eq(schema.users.id, session.user.id))
-    .limit(1);
-  if (!user?.twoFactorSecret) return fail("NO_2FA", "2FA no esta activado");
-
-  const passwordOk = await verifyPassword(user.passwordHash, parsed.data.password);
-  if (!passwordOk) return fail("INVALID_CREDENTIALS", "Contrasenya incorrecta");
-
-  if (!verifyTotpCode(decryptTotpSecret(user.twoFactorSecret), parsed.data.code)) {
-    return fail("BAD_CODE", "Codigo incorrecto");
-  }
-
-  await db
-    .update(schema.users)
-    .set({
-      twoFactorSecret: null,
-      twoFactorEnabled: false,
-      updatedAt: new Date().toISOString(),
-    })
-    .where(eq(schema.users.id, session.user.id));
-
-  const meta = await getRequestMeta();
-  await logAudit({
-    userId: session.user.id,
-    accion: "TWO_FA_DISABLED",
-    ip: meta.ip,
-    userAgent: meta.userAgent,
-  });
-
-  return { ok: true };
 }

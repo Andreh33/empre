@@ -3,13 +3,16 @@ import type { Metadata } from "next";
 import { AuthCard } from "@/components/auth/auth-card";
 import { LoginForm } from "@/components/auth/login-form";
 
-export const metadata: Metadata = { title: "Acceder" };
+export const metadata: Metadata = { title: "Acceso administrador" };
 
-export default function LoginPage() {
+export default function AdminLoginPage() {
   return (
-    <AuthCard title="Bienvenido/a" subtitle="Accede a tu area privada para continuar.">
+    <AuthCard
+      title="Acceso administrador"
+      subtitle="Solo para personal autorizado de la asesoria."
+    >
       <Suspense fallback={<p className="text-sm text-muted-foreground">Cargando...</p>}>
-        <LoginForm variant="client" />
+        <LoginForm variant="admin" />
       </Suspense>
     </AuthCard>
   );

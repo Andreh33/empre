@@ -6,19 +6,16 @@ import { requestPasswordResetAction, confirmPasswordResetAction } from "@/action
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
-import { Turnstile } from "./turnstile";
 
-export function RequestResetForm({ turnstileSiteKey }: { turnstileSiteKey?: string }) {
+export function RequestResetForm() {
   const [isPending, startTransition] = useTransition();
   const [done, setDone] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [captchaToken, setCaptchaToken] = useState("");
 
   function onSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setError(null);
     const fd = new FormData(e.currentTarget);
-    if (captchaToken) fd.set("turnstileToken", captchaToken);
     startTransition(async () => {
       const res = await requestPasswordResetAction(fd);
       if (res.ok) setDone(true);
@@ -40,7 +37,6 @@ export function RequestResetForm({ turnstileSiteKey }: { turnstileSiteKey?: stri
         <Label htmlFor="email">Email</Label>
         <Input id="email" name="email" type="email" autoComplete="email" required />
       </div>
-      <Turnstile siteKey={turnstileSiteKey} onToken={setCaptchaToken} />
       {error ? (
         <p className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">{error}</p>
       ) : null}
@@ -82,7 +78,7 @@ export function ConfirmResetForm({ token }: { token: string }) {
     return (
       <div className="space-y-4 text-sm">
         <p className="rounded-md bg-emerald-50 p-3 text-emerald-900">
-          Contrasenya actualizada. Ya puedes iniciar sesion.
+          Contraseña actualizada. Ya puedes iniciar sesion.
         </p>
         <Link href="/login" className="block text-center text-primary underline">
           Ir al login
@@ -94,7 +90,7 @@ export function ConfirmResetForm({ token }: { token: string }) {
   return (
     <form onSubmit={onSubmit} className="space-y-4" noValidate>
       <div className="space-y-2">
-        <Label htmlFor="password">Nueva contrasenya</Label>
+        <Label htmlFor="password">Nueva contraseña</Label>
         <Input
           id="password"
           name="password"
@@ -107,7 +103,7 @@ export function ConfirmResetForm({ token }: { token: string }) {
         ) : null}
       </div>
       <div className="space-y-2">
-        <Label htmlFor="confirmPassword">Repite la contrasenya</Label>
+        <Label htmlFor="confirmPassword">Repite la contraseña</Label>
         <Input
           id="confirmPassword"
           name="confirmPassword"
@@ -123,7 +119,7 @@ export function ConfirmResetForm({ token }: { token: string }) {
         <p className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">{error}</p>
       ) : null}
       <Button type="submit" className="w-full" disabled={isPending}>
-        {isPending ? "Guardando..." : "Guardar contrasenya"}
+        {isPending ? "Guardando..." : "Guardar contraseña"}
       </Button>
     </form>
   );

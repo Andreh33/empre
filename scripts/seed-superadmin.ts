@@ -1,12 +1,10 @@
 /**
  * Crea el SUPER_ADMIN inicial. Idempotente: si ya existe, actualiza la
- * contrasenya. Uso:
+ * contraseña. Uso:
  *
  *   npm run seed:superadmin -- "<email>" "<password>"
  *
- * El primer SUPER_ADMIN se crea con emailVerified=true para que pueda
- * iniciar sesion sin verificacion. Tras el primer login DEBE configurar 2FA
- * en /admin/seguridad antes de seguir entrando (el sistema le obliga).
+ * El SUPER_ADMIN puede iniciar sesion en /admin/login.
  */
 import { config as loadEnv } from "dotenv";
 
@@ -30,7 +28,7 @@ async function main() {
 
   const pwParse = passwordSchema.safeParse(password);
   if (!pwParse.success) {
-    console.error("Contrasenya invalida:", pwParse.error.flatten().formErrors);
+    console.error("Contraseña invalida:", pwParse.error.flatten().formErrors);
     process.exit(1);
   }
 
@@ -72,7 +70,6 @@ async function main() {
     console.warn("[seed] SUPER_ADMIN creado:", email);
   }
 
-  console.warn("[seed] Recuerda activar 2FA en /admin/seguridad tras el primer login.");
   process.exit(0);
 }
 

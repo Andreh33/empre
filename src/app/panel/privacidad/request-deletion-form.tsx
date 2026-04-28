@@ -24,7 +24,7 @@ export function RequestDeletionForm() {
   return (
     <form onSubmit={submit} className="space-y-3">
       <div>
-        <Label htmlFor="password">Confirma con tu contrasenya</Label>
+        <Label htmlFor="password">Confirma con tu contraseña</Label>
         <Input id="password" name="password" type="password" required />
       </div>
       {error ? <p className="text-sm text-destructive">{error}</p> : null}

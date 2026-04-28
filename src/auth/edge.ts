@@ -18,7 +18,7 @@ export const edgeAuthConfig: NextAuthConfig = {
           : "asesoria.session-token",
       options: {
         httpOnly: true,
-        sameSite: "strict",
+        sameSite: "lax",
         path: "/",
         secure: env.NODE_ENV === "production",
       },
@@ -35,8 +35,12 @@ export const edgeAuthConfig: NextAuthConfig = {
         path.startsWith("/admin") || path.startsWith("/panel") || path.startsWith("/api/protected");
       if (!isProtected) return true;
 
+      // /admin/login es publica para que los administradores accedan.
+      if (path === "/admin/login" || path.startsWith("/admin/login/")) return true;
+
       if (!isAuth) {
-        const url = new URL("/login", request.nextUrl);
+        const target = path.startsWith("/admin") ? "/admin/login" : "/login";
+        const url = new URL(target, request.nextUrl);
         url.searchParams.set("callbackUrl", request.nextUrl.pathname);
         return Response.redirect(url);
       }

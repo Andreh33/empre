@@ -61,14 +61,14 @@ export function emailVerificationTemplate(verifyUrl: string) {
 }
 
 export function passwordResetTemplate(resetUrl: string) {
-  const text = `Has solicitado restablecer tu contrasenya en ${env.APP_NAME}.\n\nEnlace (valido 30 min):\n${resetUrl}\n\nSi no has sido tu, cambia tu contrasenya inmediatamente y avisanos.`;
+  const text = `Has solicitado restablecer tu contraseña en ${env.APP_NAME}.\n\nEnlace (valido 30 min):\n${resetUrl}\n\nSi no has sido tu, cambia tu contraseña inmediatamente y avisanos.`;
   const html = `<div style="${baseStyles}">
-    <h2>Restablece tu contrasenya</h2>
-    <p>Has solicitado restablecer tu contrasenya en <strong>${env.APP_NAME}</strong>. Pulsa el boton (enlace valido 30 min):</p>
-    <p><a href="${resetUrl}" style="${buttonStyles}">Restablecer contrasenya</a></p>
-    <p style="color:#666;font-size:12px">Si no has sido tu, ignora este email y avisanos. La contrasenya actual sigue funcionando.</p>
+    <h2>Restablece tu contraseña</h2>
+    <p>Has solicitado restablecer tu contraseña en <strong>${env.APP_NAME}</strong>. Pulsa el boton (enlace valido 30 min):</p>
+    <p><a href="${resetUrl}" style="${buttonStyles}">Restablecer contraseña</a></p>
+    <p style="color:#666;font-size:12px">Si no has sido tu, ignora este email y avisanos. La contraseña actual sigue funcionando.</p>
   </div>`;
-  return { subject: `Restablece tu contrasenya - ${env.APP_NAME}`, text, html };
+  return { subject: `Restablece tu contraseña - ${env.APP_NAME}`, text, html };
 }
 
 export function sensitiveChangeTemplate(confirmUrl: string, tipo: "DNI" | "IBAN") {
@@ -83,11 +83,11 @@ export function sensitiveChangeTemplate(confirmUrl: string, tipo: "DNI" | "IBAN"
 }
 
 export function clientInvitationTemplate(invitationUrl: string, nombre: string) {
-  const text = `Hola ${nombre},\n\nLa Asesoria Empresarial Juan Garcia te ha dado de alta en su plataforma. Activa tu cuenta y crea tu contrasenya en este enlace (valido 24 h):\n${invitationUrl}\n`;
+  const text = `Hola ${nombre},\n\nLa Asesoria Empresarial Juan Garcia te ha dado de alta en su plataforma. Activa tu cuenta y crea tu contraseña en este enlace (valido 24 h):\n${invitationUrl}\n`;
   const html = `<div style="${baseStyles}">
     <h2>Bienvenido/a, ${nombre}</h2>
     <p>La <strong>${env.APP_NAME}</strong> te ha dado de alta en su plataforma segura.</p>
-    <p>Pulsa el boton para activar tu cuenta y elegir tu contrasenya (enlace valido 24 horas):</p>
+    <p>Pulsa el boton para activar tu cuenta y elegir tu contraseña (enlace valido 24 horas):</p>
     <p><a href="${invitationUrl}" style="${buttonStyles}">Activar mi cuenta</a></p>
   </div>`;
   return { subject: `Tu cuenta en ${env.APP_NAME}`, text, html };

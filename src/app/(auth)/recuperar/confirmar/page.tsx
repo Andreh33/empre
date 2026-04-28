@@ -3,7 +3,7 @@ import Link from "next/link";
 import { AuthCard } from "@/components/auth/auth-card";
 import { ConfirmResetForm } from "@/components/auth/password-recovery-form";
 
-export const metadata: Metadata = { title: "Nueva contrasenya" };
+export const metadata: Metadata = { title: "Nueva contraseña" };
 
 interface PageProps {
   searchParams: Promise<{ token?: string }>;
@@ -23,7 +23,7 @@ export default async function ConfirmarPage({ searchParams }: PageProps) {
   }
 
   return (
-    <AuthCard title="Nueva contrasenya" subtitle="Elige una clave robusta.">
+    <AuthCard title="Nueva contraseña" subtitle="Elige una clave robusta.">
       <ConfirmResetForm token={token} />
     </AuthCard>
   );

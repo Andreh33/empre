@@ -2,52 +2,33 @@
 
 import { useState, useTransition } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { registerAction } from "@/actions/auth";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
-import { Turnstile } from "./turnstile";
 
-interface Props {
-  turnstileSiteKey?: string;
-}
-
-export function RegisterForm({ turnstileSiteKey }: Props) {
+export function RegisterForm() {
+  const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string[]>>({});
-  const [done, setDone] = useState(false);
-  const [captchaToken, setCaptchaToken] = useState("");
 
   function onSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setError(null);
     setFieldErrors({});
     const fd = new FormData(e.currentTarget);
-    if (captchaToken) fd.set("turnstileToken", captchaToken);
     startTransition(async () => {
       const res = await registerAction(fd);
       if (res.ok) {
-        setDone(true);
+        router.replace("/panel");
+        router.refresh();
         return;
       }
       setError(res.message);
       if (res.fieldErrors) setFieldErrors(res.fieldErrors);
     });
-  }
-
-  if (done) {
-    return (
-      <div className="space-y-3 text-sm">
-        <p className="rounded-md bg-emerald-50 p-3 text-emerald-900">
-          Cuenta creada. Si te enviamos un email de verificacion, revisalo (caduca en 1 h).
-          En caso contrario, ya puedes iniciar sesion.
-        </p>
-        <Link href="/login" className="block text-center text-primary underline-offset-4 hover:underline">
-          Ir al login
-        </Link>
-      </div>
-    );
   }
 
   return (
@@ -60,7 +41,7 @@ export function RegisterForm({ turnstileSiteKey }: Props) {
         ) : null}
       </div>
       <div className="space-y-2">
-        <Label htmlFor="password">Contrasenya</Label>
+        <Label htmlFor="password">Contraseña</Label>
         <Input
           id="password"
           name="password"
@@ -68,15 +49,13 @@ export function RegisterForm({ turnstileSiteKey }: Props) {
           autoComplete="new-password"
           required
         />
-        <p className="text-xs text-muted-foreground">
-          Min. 12 caracteres con mayusculas, minusculas, numeros y simbolos.
-        </p>
+        <p className="text-xs text-muted-foreground">Minimo 6 caracteres.</p>
         {fieldErrors.password?.[0] ? (
           <p className="text-xs text-destructive">{fieldErrors.password[0]}</p>
         ) : null}
       </div>
       <div className="space-y-2">
-        <Label htmlFor="confirmPassword">Repite la contrasenya</Label>
+        <Label htmlFor="confirmPassword">Repite la contraseña</Label>
         <Input
           id="confirmPassword"
           name="confirmPassword"
@@ -111,8 +90,6 @@ export function RegisterForm({ turnstileSiteKey }: Props) {
           </span>
         </label>
       </div>
-
-      <Turnstile siteKey={turnstileSiteKey} onToken={setCaptchaToken} />
 
       {error ? (
         <p role="alert" className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">

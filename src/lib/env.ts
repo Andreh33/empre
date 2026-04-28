@@ -51,8 +51,6 @@ const envSchema = z.object({
   BLOB_READ_WRITE_TOKEN: optionalString,
   RESEND_API_KEY: optionalString,
   RESEND_FROM_EMAIL: z.string().email().default("no-reply@asesoria-juangarcia.es"),
-  TURNSTILE_SITE_KEY: optionalString,
-  TURNSTILE_SECRET_KEY: optionalString,
   UPSTASH_REDIS_REST_URL: optionalUrl,
   UPSTASH_REDIS_REST_TOKEN: optionalString,
 

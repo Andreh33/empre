@@ -74,7 +74,7 @@ export async function inviteClientAction(
   }
 
   const userId = randomUUID();
-  // Contrasenya temporal aleatoria (el cliente la cambiara en el flujo de invitacion).
+  // Contraseña temporal aleatoria (el cliente la cambiara en el flujo de invitacion).
   const tempHash = await hashPassword(generateToken().slice(0, 24) + "Aa1!");
 
   await db.insert(schema.users).values({
