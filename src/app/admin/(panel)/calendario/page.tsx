@@ -8,7 +8,7 @@ import { SeedGenericButton } from "./seed-button";
 export const metadata: Metadata = { title: "Calendario fiscal (admin)" };
 
 export default async function AdminCalendarPage() {
-  const session = await requireAdmin();
+  await requireAdmin();
   const today = new Date().toISOString().slice(0, 10);
   const inOneYear = new Date(Date.now() + 365 * 24 * 60 * 60 * 1000)
     .toISOString()
@@ -21,13 +21,13 @@ export default async function AdminCalendarPage() {
         <div>
           <h1 className="text-2xl font-bold">Calendario fiscal</h1>
           <p className="text-sm text-muted-foreground">
-            Eventos genericos (visibles para todos los clientes) y personalizados.
+            Eventos genéricos (visibles para todos los clientes) y personalizados.
           </p>
         </div>
-        {session.user.role === "SUPER_ADMIN" ? <SeedGenericButton /> : null}
+        <SeedGenericButton />
       </div>
       <NewEventForm />
-      <CalendarList events={events} />
+      <CalendarList events={events} canDelete />
     </div>
   );
 }

@@ -2,6 +2,7 @@
 
 import { randomUUID } from "node:crypto";
 import { eq } from "drizzle-orm";
+import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { db, schema } from "@/db";
 import { auth } from "@/auth";
@@ -106,82 +107,107 @@ export async function deleteFolderAction(formData: FormData): Promise<ActionResu
 // SUBIR archivo: lee File del FormData, valida, cifra, sube, escanea, registra.
 // ---------------------------------------------------------------------
 export async function uploadFileAction(formData: FormData): Promise<ActionResult<{ id: string }>> {
-  const ownerId = String(formData.get("ownerId") ?? "");
-  const folderId = (formData.get("folderId") as string | null) || null;
-  const mensaje = (formData.get("mensaje") as string | null)?.trim() || null;
-  const file = formData.get("file");
-  if (!(file instanceof File)) return fail("VALIDATION", "Archivo no enviado");
+  try {
+    const ownerId = String(formData.get("ownerId") ?? "");
+    const folderId = (formData.get("folderId") as string | null) || null;
+    const mensaje = (formData.get("mensaje") as string | null)?.trim() || null;
+    const file = formData.get("file");
+    if (!(file instanceof File)) return fail("VALIDATION", "Archivo no enviado");
 
-  const sess = await assertCanAccess(ownerId);
-  if (!sess) return fail("FORBIDDEN", "No autorizado");
+    const sess = await assertCanAccess(ownerId);
+    if (!sess) return fail("FORBIDDEN", "No autorizado");
 
-  const buffer = await file.arrayBuffer();
-  const head = new Uint8Array(buffer.slice(0, 16));
+    const buffer = await file.arrayBuffer();
+    const head = new Uint8Array(buffer.slice(0, 16));
 
-  const maxBytes = env.MAX_UPLOAD_SIZE_MB * 1024 * 1024;
-  const check = checkFile(file.name, head, file.size, maxBytes);
-  if (!check.ok) return fail("FILE_REJECTED", check.reason ?? "Archivo no permitido");
+    const maxBytes = env.MAX_UPLOAD_SIZE_MB * 1024 * 1024;
+    const check = checkFile(file.name, head, file.size, maxBytes);
+    if (!check.ok) return fail("FILE_REJECTED", check.reason ?? "Archivo no permitido");
 
-  // Antivirus PRIMERO (sobre el plaintext) y luego subimos cifrado.
-  const av = await scanWithVirusTotal(buffer, file.name);
-  if (av.status === "INFECTED") {
-    return fail("INFECTED", "El archivo fue detectado como malicioso por el antivirus");
-  }
+    // Antivirus PRIMERO (sobre el plaintext) y luego subimos cifrado.
+    let av;
+    try {
+      av = await scanWithVirusTotal(buffer, file.name);
+    } catch (err) {
+      console.error("[upload] antivirus error:", err);
+      av = { status: "PENDING" as const, report: { error: String(err) } };
+    }
+    if (av.status === "INFECTED") {
+      return fail("INFECTED", "El archivo fue detectado como malicioso por el antivirus");
+    }
 
-  const pathname = `${ownerId}/${randomUUID()}.bin`;
-  const blob = await encryptAndUpload(buffer, pathname);
+    if (!env.BLOB_READ_WRITE_TOKEN) {
+      return fail("STORAGE_UNCONFIGURED", "Almacenamiento de archivos no configurado en el servidor");
+    }
 
-  const id = await createFileRecord({
-    folderId: folderId || null,
-    ownerId,
-    uploadedById: sess.userId,
-    nombreOriginal: file.name,
-    nombreAlmacenamiento: blob.pathname,
-    blobUrl: blob.url,
-    mimeType: file.type || "application/octet-stream",
-    tamanoBytes: blob.size,
-    sha256: blob.sha256,
-    categoria: autoCategorize(file.name),
-    mensajeAdjunto: mensaje,
-    antivirusStatus: av.status,
-    antivirusReport: av.report ?? null,
-  });
+    const pathname = `${ownerId}/${randomUUID()}.bin`;
+    let blob;
+    try {
+      blob = await encryptAndUpload(buffer, pathname);
+    } catch (err) {
+      console.error("[upload] blob error:", err);
+      return fail("STORAGE_ERROR", `No se pudo guardar el archivo: ${(err as Error).message}`);
+    }
 
-  const meta = await getRequestMeta();
-  await logAudit({
-    userId: sess.userId,
-    accion: "FILE_UPLOADED",
-    recursoTipo: "file",
-    recursoId: id,
-    ip: meta.ip,
-    userAgent: meta.userAgent,
-    metadata: {
+    const id = await createFileRecord({
+      folderId: folderId || null,
       ownerId,
-      folderId,
-      filename: file.name,
-      av: av.status,
-    },
-  });
-
-  // Si admin sube + hay mensaje, lo registramos como mensaje adjunto al cliente.
-  if (sess.role !== "CLIENT" && mensaje) {
-    await db.insert(schema.messages).values({
-      id: randomUUID(),
-      fromUserId: sess.userId,
-      toClientUserId: ownerId,
-      contenido: mensaje,
-      archivosAdjuntos: JSON.stringify([id]),
+      uploadedById: sess.userId,
+      nombreOriginal: file.name,
+      nombreAlmacenamiento: blob.pathname,
+      blobUrl: blob.url,
+      mimeType: file.type || "application/octet-stream",
+      tamanoBytes: blob.size,
+      sha256: blob.sha256,
+      categoria: autoCategorize(file.name),
+      mensajeAdjunto: mensaje,
+      antivirusStatus: av.status,
+      antivirusReport: av.report ?? null,
     });
+
+    const meta = await getRequestMeta();
     await logAudit({
       userId: sess.userId,
-      accion: "MESSAGE_SENT",
-      recursoTipo: "message",
+      accion: "FILE_UPLOADED",
+      recursoTipo: "file",
+      recursoId: id,
       ip: meta.ip,
       userAgent: meta.userAgent,
+      metadata: {
+        ownerId,
+        folderId,
+        filename: file.name,
+        av: av.status,
+      },
     });
-  }
 
-  return { ok: true, data: { id } };
+    // Si admin sube + hay mensaje, lo registramos como mensaje adjunto al cliente.
+    if (sess.role !== "CLIENT" && mensaje) {
+      await db.insert(schema.messages).values({
+        id: randomUUID(),
+        fromUserId: sess.userId,
+        toClientUserId: ownerId,
+        contenido: mensaje,
+        archivosAdjuntos: JSON.stringify([id]),
+      });
+      await logAudit({
+        userId: sess.userId,
+        accion: "MESSAGE_SENT",
+        recursoTipo: "message",
+        ip: meta.ip,
+        userAgent: meta.userAgent,
+      });
+    }
+
+    revalidatePath("/panel/documentos");
+    revalidatePath(`/admin/clientes/${ownerId}/documentos`);
+    revalidatePath("/admin/documentos");
+
+    return { ok: true, data: { id } };
+  } catch (err) {
+    console.error("[upload] unexpected error:", err);
+    return fail("UNKNOWN", `Error al subir el archivo: ${(err as Error).message}`);
+  }
 }
 
 // ---------------------------------------------------------------------
@@ -241,5 +267,8 @@ export async function deleteFileAction(formData: FormData): Promise<ActionResult
     ip: meta.ip,
     userAgent: meta.userAgent,
   });
+  revalidatePath("/panel/documentos");
+  revalidatePath(`/admin/clientes/${file.ownerId}/documentos`);
+  revalidatePath("/admin/documentos");
   return { ok: true };
 }

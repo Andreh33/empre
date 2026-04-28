@@ -1,6 +1,7 @@
 "use client";
 
 import { useRef, useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
 import { uploadFileAction } from "@/actions/files";
 import { Button } from "@/components/ui/button";
 
@@ -27,6 +28,7 @@ export function UploadZone({
   allowMessage = false,
   onUploaded,
 }: Props) {
+  const router = useRouter();
   const inputRef = useRef<HTMLInputElement>(null);
   const [drag, setDrag] = useState(false);
   const [items, setItems] = useState<ItemProgress[]>([]);
@@ -66,6 +68,7 @@ export function UploadZone({
       for (const f of arr) await uploadOne(f);
       onUploaded?.();
       setMensaje("");
+      router.refresh();
     });
   }
 

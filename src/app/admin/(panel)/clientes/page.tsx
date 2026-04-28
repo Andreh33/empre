@@ -40,17 +40,21 @@ export default async function ClientesPage({ searchParams }: PageProps) {
         </Button>
       </div>
 
-      <form className="flex flex-wrap items-end gap-3 rounded-lg border bg-card p-4">
+      <form
+        method="get"
+        action="/admin/clientes"
+        className="flex flex-wrap items-end gap-3 rounded-lg border bg-card p-4"
+      >
         <div className="flex-1 space-y-1">
           <label htmlFor="q" className="text-xs font-medium text-muted-foreground">
-            Buscar (nombre, apellidos, email, telefono o DNI)
+            Buscar (nombre, apellidos, email, teléfono o DNI)
           </label>
           <input
             id="q"
             name="q"
             defaultValue={q ?? ""}
             className="h-11 w-full rounded-md border border-input bg-background px-3 text-base"
-            placeholder="Maria, garcia, 12345678Z..."
+            placeholder="María, García, 12345678Z..."
           />
         </div>
         <div className="space-y-1">
@@ -65,11 +69,19 @@ export default async function ClientesPage({ searchParams }: PageProps) {
           >
             <option value="">Todos</option>
             <option value="PARTICULAR">Particular</option>
-            <option value="AUTONOMO">Autonomo</option>
+            <option value="AUTONOMO">Autónomo</option>
             <option value="SOCIEDAD">Sociedad</option>
           </select>
         </div>
         <Button type="submit">Filtrar</Button>
+        {q || tipo ? (
+          <Link
+            href="/admin/clientes"
+            className="text-sm text-muted-foreground hover:underline"
+          >
+            Limpiar
+          </Link>
+        ) : null}
       </form>
 
       <div className="overflow-hidden rounded-lg border bg-card">

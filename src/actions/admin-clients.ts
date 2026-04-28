@@ -10,6 +10,7 @@
  */
 import { randomUUID } from "node:crypto";
 import { eq } from "drizzle-orm";
+import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { db, schema } from "@/db";
 import { auth } from "@/auth";
@@ -141,6 +142,8 @@ export async function createClientAction(formData: FormData): Promise<ActionResu
     ip: meta.ip,
     userAgent: meta.userAgent,
   });
+
+  revalidatePath("/admin/clientes");
   return { ok: true };
 }
 

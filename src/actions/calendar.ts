@@ -1,6 +1,7 @@
 "use server";
 
 import { z } from "zod";
+import { revalidatePath } from "next/cache";
 import { auth } from "@/auth";
 import { createEvent, deleteEvent, seedGenericEvents } from "@/services/fiscal-calendar";
 import { logAudit } from "@/services/audit";
@@ -58,16 +59,19 @@ export async function deleteCalendarEventAction(formData: FormData): Promise<Act
   const id = String(formData.get("id") ?? "");
   if (!id) return { ok: false, code: "VALIDATION", message: "Falta id" };
   await deleteEvent(id);
+  revalidatePath("/admin/calendario");
+  revalidatePath("/panel/calendario");
   return { ok: true };
 }
 
 export async function seedGenericEventsAction(): Promise<ActionResult> {
   const session = await auth();
-  if (!session?.user?.id || session.user.role !== "SUPER_ADMIN") {
-    return { ok: false, code: "FORBIDDEN", message: "Solo SUPER_ADMIN" };
+  if (!session?.user?.id || (session.user.role !== "ADMIN" && session.user.role !== "SUPER_ADMIN")) {
+    return { ok: false, code: "FORBIDDEN", message: "Solo administradores" };
   }
   const year = new Date().getFullYear();
   await seedGenericEvents(year, session.user.id);
   await seedGenericEvents(year + 1, session.user.id);
+  revalidatePath("/admin/calendario");
   return { ok: true };
 }
