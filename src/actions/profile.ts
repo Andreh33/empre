@@ -134,7 +134,7 @@ export async function requestSensitiveChangeAction(
       return fail("DNI_IN_USE", "Ese DNI ya esta registrado en otra cuenta");
     }
   } else if (tipo === "IBAN") {
-    if (!isValidIBAN_ES(cleaned)) return fail("VALIDATION", "IBAN espanyol invalido");
+    if (!isValidIBAN_ES(cleaned)) return fail("VALIDATION", "IBAN español inválido");
   }
 
   const token = generateToken();

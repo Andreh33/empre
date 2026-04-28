@@ -11,7 +11,7 @@
  * y mantenemos lookups O(log n) por indice.
  *
  * Rotacion: si en el futuro hace falta rotar ENCRYPTION_KEY, el formato
- * deberia anyadir un byte de "key version" delante. Por ahora 1 sola clave.
+ * deberia añadir un byte de "key version" delante. Por ahora 1 sola clave.
  */
 import { gcm } from "@noble/ciphers/aes";
 import { randomBytes } from "@noble/ciphers/webcrypto";

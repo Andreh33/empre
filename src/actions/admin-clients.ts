@@ -2,8 +2,8 @@
 
 /**
  * Server Actions del admin sobre clientes:
- *   - inviteClientAction: alta de cliente con email de invitacion (token de
- *     activacion = mismo token de password reset, valido 24 h).
+ *   - createClientAction: alta de cliente con contraseña directa elegida por
+ *     el admin. El cliente puede entrar inmediatamente con esas credenciales.
  *   - adminUpdateProfileAction: edita perfil completo de un cliente
  *     (incluye DNI/IBAN: el admin puede corregir sin flujo email).
  *   - assignAdminAction: cambia el admin gestor de un cliente.
@@ -13,12 +13,9 @@ import { eq } from "drizzle-orm";
 import { z } from "zod";
 import { db, schema } from "@/db";
 import { auth } from "@/auth";
-import { env } from "@/lib/env";
 import { emailHash, encryptField, searchHash } from "@/lib/crypto";
 import { getRequestMeta } from "@/lib/request-context";
-import { hashPassword } from "@/services/password";
-import { generateToken, hashToken, isoFromNow } from "@/services/tokens";
-import { sendEmail, clientInvitationTemplate } from "@/services/mail";
+import { hashPassword, passwordSchema } from "@/services/password";
 import { logAudit } from "@/services/audit";
 import { profileSchema } from "@/lib/schemas/client-profile";
 import { applySensitiveChange, isDniInUse, updateProfile } from "@/services/client-profile";
@@ -33,15 +30,24 @@ function fail<T = unknown>(
 }
 
 // ---------------------------------------------------------------------
-// INVITAR CLIENTE: crea user + perfil + token de activacion (24 h).
+// CREAR CLIENTE con contraseña directa (sin email de invitacion).
+// El admin elige email + contraseña + perfil; el cliente puede entrar ya.
 // ---------------------------------------------------------------------
-const inviteSchema = z
-  .object({ email: z.string().email().toLowerCase() })
-  .and(profileSchema);
+const createSchema = z
+  .object({
+    email: z.string().email("Email invalido").toLowerCase(),
+    password: passwordSchema,
+    confirmPassword: z
+      .string()
+      .transform((v) => v.normalize("NFC").replace(/^\s+|\s+$/g, "")),
+  })
+  .and(profileSchema)
+  .refine((d) => d.password === d.confirmPassword, {
+    path: ["confirmPassword"],
+    message: "Las contraseñas no coinciden",
+  });
 
-export async function inviteClientAction(
-  formData: FormData,
-): Promise<ActionResult<{ activationUrl?: string }>> {
+export async function createClientAction(formData: FormData): Promise<ActionResult> {
   const session = await auth();
   if (!session?.user?.id || (session.user.role !== "ADMIN" && session.user.role !== "SUPER_ADMIN")) {
     return fail("FORBIDDEN", "Solo administradores");
@@ -50,12 +56,12 @@ export async function inviteClientAction(
   const obj: Record<string, string | undefined> = {};
   for (const [k, v] of formData.entries()) obj[k] = typeof v === "string" ? v : undefined;
 
-  const parsed = inviteSchema.safeParse(obj);
+  const parsed = createSchema.safeParse(obj);
   if (!parsed.success) {
     return fail("VALIDATION", "Revisa los campos", parsed.error.flatten().fieldErrors);
   }
 
-  const { email, ...profile } = parsed.data;
+  const { email, password, ...profile } = parsed.data;
   const eHash = emailHash(email);
 
   const [existing] = await db
@@ -74,17 +80,17 @@ export async function inviteClientAction(
   }
 
   const userId = randomUUID();
-  // Contraseña temporal aleatoria (el cliente la cambiara en el flujo de invitacion).
-  const tempHash = await hashPassword(generateToken().slice(0, 24) + "Aa1!");
+  const passwordHash = await hashPassword(password);
 
   await db.insert(schema.users).values({
     id: userId,
     email,
     emailHash: eHash,
-    passwordHash: tempHash,
+    passwordHash,
     role: "CLIENT",
-    emailVerified: true, // el admin lo crea: no necesita verificar
+    emailVerified: true,
     emailVerifiedAt: new Date().toISOString(),
+    onboardingCompleted: true,
   });
 
   await db.insert(schema.clientProfiles).values({
@@ -117,28 +123,6 @@ export async function inviteClientAction(
     assignedAdminId: session.user.id,
   });
 
-  await db
-    .update(schema.users)
-    .set({ onboardingCompleted: true })
-    .where(eq(schema.users.id, userId));
-
-  // Token de activacion = reset password de 24 h.
-  const token = generateToken();
-  await db.insert(schema.passwordResetTokens).values({
-    id: randomUUID(),
-    userId,
-    tokenHash: hashToken(token),
-    expiresAt: isoFromNow(24 * 60 * 60 * 1000),
-  });
-
-  const url = `${env.APP_URL}/recuperar/confirmar?token=${token}`;
-
-  // Si hay Resend, enviamos email; si no, devolvemos el link al admin para
-  // que se lo pase al cliente por el canal que prefiera.
-  if (env.RESEND_API_KEY) {
-    await sendEmail({ to: email, ...clientInvitationTemplate(url, profile.nombre) });
-  }
-
   const meta = await getRequestMeta();
   await logAudit({
     userId: session.user.id,
@@ -147,7 +131,7 @@ export async function inviteClientAction(
     recursoId: userId,
     ip: meta.ip,
     userAgent: meta.userAgent,
-    metadata: { invitedEmail: email },
+    metadata: { createdEmail: email, byAdmin: true },
   });
   await logAudit({
     userId: session.user.id,
@@ -157,7 +141,7 @@ export async function inviteClientAction(
     ip: meta.ip,
     userAgent: meta.userAgent,
   });
-  return { ok: true, data: env.RESEND_API_KEY ? {} : { activationUrl: url } };
+  return { ok: true };
 }
 
 // ---------------------------------------------------------------------

@@ -56,7 +56,7 @@ export interface FileCheck {
 export function checkFile(filename: string, head: Uint8Array, size: number, maxBytes: number): FileCheck {
   const ext = (filename.split(".").pop() ?? "").toLowerCase();
   if (size > maxBytes) {
-    return { ok: false, reason: `Tamanyo ${size} > maximo ${maxBytes}`, extension: ext };
+    return { ok: false, reason: `Tamaño ${size} > máximo ${maxBytes}`, extension: ext };
   }
   if (BLOCKED_EXTENSIONS.has(ext)) {
     return { ok: false, reason: `Extension .${ext} bloqueada`, extension: ext };

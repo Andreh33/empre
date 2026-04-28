@@ -56,9 +56,9 @@ export function NewEventForm({ clientUserId }: { clientUserId?: string }) {
       </div>
       <div className="md:col-span-4 flex items-center justify-end gap-3">
         {error ? <p className="text-sm text-destructive">{error}</p> : null}
-        {done ? <p className="text-sm text-emerald-600">Anyadido.</p> : null}
+        {done ? <p className="text-sm text-emerald-600">Añadido.</p> : null}
         <Button type="submit" disabled={pending}>
-          {pending ? "Guardando..." : "Anyadir evento"}
+          {pending ? "Guardando..." : "Añadir evento"}
         </Button>
       </div>
     </form>

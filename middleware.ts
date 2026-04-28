@@ -12,7 +12,7 @@ const { auth: middlewareAuth } = NextAuth(edgeAuthConfig);
 
 export default middlewareAuth(async (req) => {
   // Auth callback ya redirige si la ruta esta protegida y no hay sesion.
-  // Anyadimos cabeceras de seguridad y exponemos el pathname para layouts.
+  // Añadimos cabeceras de seguridad y exponemos el pathname para layouts.
   const res = NextResponse.next({
     request: {
       headers: new Headers({

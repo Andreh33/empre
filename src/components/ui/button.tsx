@@ -1,5 +1,5 @@
 /**
- * Button shadcn/ui base. Tamanyos pensados para movil (>= 44px).
+ * Button shadcn/ui base. Tamaños pensados para movil (>= 44px).
  */
 import * as React from "react";
 import { Slot } from "@radix-ui/react-slot";

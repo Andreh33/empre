@@ -13,7 +13,7 @@ import type { ActionResult } from "./auth";
 /**
  * Solicitar baja: marca user.deletedAt y user.deletionScheduledFor (+7 dias).
  * El cron de Fase 9 hara el borrado fisico tras la gracia (con excepcion de
- * documentos con obligacion legal: se conservan en una "cuarentena" 4-6 anyos).
+ * documentos con obligacion legal: se conservan en una "cuarentena" 4-6 años).
  */
 const requestDeletionSchema = z.object({
   password: z.string().min(1),

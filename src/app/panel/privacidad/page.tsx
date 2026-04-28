@@ -33,7 +33,7 @@ export default async function PrivacidadPage() {
         <p className="text-sm text-muted-foreground">
           Tu cuenta se desactivara inmediatamente y tus datos personales se eliminaran
           definitivamente tras 7 dias. Documentos con obligacion legal de conservacion fiscal se
-          mantienen el plazo legal (4-6 anyos), separados y solo accesibles a la asesoria.
+          mantienen el plazo legal (4-6 años), separados y solo accesibles a la asesoría.
         </p>
         <RequestDeletionForm />
       </section>

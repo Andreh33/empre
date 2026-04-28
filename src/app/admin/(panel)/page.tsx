@@ -50,7 +50,7 @@ const cards: DashboardCard[] = [
   },
   {
     title: "Mi seguridad",
-    description: "Cambia tu contrasenya y revisa la actividad de tu cuenta.",
+    description: "Cambia tu contraseña y revisa la actividad de tu cuenta.",
     icon: ShieldCheck,
     href: "/admin/seguridad",
   },

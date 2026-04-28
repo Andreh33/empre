@@ -1,7 +1,7 @@
 /**
  * Calendario fiscal: eventos genericos (precargados) + personalizados.
- * Los plazos se actualizan cada anyo en la AEAT; aqui dejamos los modelos
- * trimestrales/anuales mas comunes con fechas tipicas. Revisar cada anyo.
+ * Los plazos se actualizan cada año en la AEAT; aqui dejamos los modelos
+ * trimestrales/anuales mas comunes con fechas tipicas. Revisar cada año.
  */
 import { randomUUID } from "node:crypto";
 import { and, asc, eq, gte, lte, isNull, or } from "drizzle-orm";
@@ -71,7 +71,7 @@ export async function deleteEvent(id: string) {
     .where(eq(schema.fiscalEvents.id, id));
 }
 
-/** Genera eventos genericos para el anyo dado. Idempotente por titulo+fecha. */
+/** Genera eventos genericos para el año dado. Idempotente por titulo+fecha. */
 export async function seedGenericEvents(year: number, creatorUserId: string) {
   const items: { titulo: string; descripcion: string; fecha: string }[] = [
     // Modelos trimestrales (plazos AEAT habituales).

@@ -14,7 +14,7 @@ export function SeedGenericButton() {
       variant="gold"
       disabled={pending}
       onClick={() => {
-        if (!confirm("Cargar eventos fiscales genericos para este anyo y el siguiente?")) return;
+        if (!confirm("Cargar eventos fiscales genéricos para este año y el siguiente?")) return;
         start(async () => {
           const res = await seedGenericEventsAction();
           if (!res.ok) alert(res.message);
@@ -22,7 +22,7 @@ export function SeedGenericButton() {
         });
       }}
     >
-      {pending ? "Cargando..." : "Cargar eventos genericos"}
+      {pending ? "Cargando..." : "Cargar eventos genéricos"}
     </Button>
   );
 }

@@ -1,5 +1,5 @@
 /**
- * Provincias de Espanya por codigo postal (2 primeros digitos).
+ * Provincias de España por codigo postal (2 primeros digitos).
  * Fuente: Real Decreto 1422/2007 e INE.
  */
 export const PROVINCIAS_POR_CP: Record<string, string> = {

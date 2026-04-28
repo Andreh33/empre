@@ -36,7 +36,7 @@ export default async function ClientesPage({ searchParams }: PageProps) {
           </p>
         </div>
         <Button asChild>
-          <Link href="/admin/clientes/nuevo">Anyadir cliente</Link>
+          <Link href="/admin/clientes/nuevo">Añadir cliente</Link>
         </Button>
       </div>
 

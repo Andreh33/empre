@@ -40,7 +40,7 @@ export function NewNoteForm({ clientUserId }: { clientUserId: string }) {
       <div className="flex items-center justify-between">
         {error ? <p className="text-sm text-destructive">{error}</p> : <span />}
         <Button type="submit" disabled={pending || !text.trim()}>
-          {pending ? "Guardando..." : "Anyadir nota"}
+          {pending ? "Guardando..." : "Añadir nota"}
         </Button>
       </div>
     </form>

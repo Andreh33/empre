@@ -26,7 +26,7 @@ const emptyToUndefined = (v: unknown) =>
 // preprocess para tratar "" como ausente y dejar que el `min(1)` o el `enum`
 // fallen con el mensaje apropiado.
 
-// Identificadores espanyoles.
+// Identificadores españoles.
 const dniNieSchema = z
   .string()
   .trim()
@@ -49,7 +49,7 @@ const ibanSchema = z
   .string()
   .trim()
   .transform((v) => v.replace(/\s+/g, "").toUpperCase())
-  .refine(isValidIBAN_ES, "IBAN espanyol invalido");
+  .refine(isValidIBAN_ES, "IBAN español inválido");
 
 const nssSchema = z
   .string()
