@@ -71,6 +71,28 @@ export function passwordResetTemplate(resetUrl: string) {
   return { subject: `Restablece tu contrasenya - ${env.APP_NAME}`, text, html };
 }
 
+export function sensitiveChangeTemplate(confirmUrl: string, tipo: "DNI" | "IBAN") {
+  const text = `Has solicitado modificar tu ${tipo} en ${env.APP_NAME}.\n\nConfirma el cambio en este enlace (valido 30 min):\n${confirmUrl}\n\nSi no has sido tu, ignora este email y avisanos: tu ${tipo} sigue siendo el mismo.`;
+  const html = `<div style="${baseStyles}">
+    <h2>Confirma el cambio de ${tipo}</h2>
+    <p>Hemos recibido una solicitud para modificar tu <strong>${tipo}</strong> en <strong>${env.APP_NAME}</strong>. El cambio NO se aplica hasta que pulses el enlace (valido 30 min):</p>
+    <p><a href="${confirmUrl}" style="${buttonStyles}">Confirmar cambio</a></p>
+    <p style="color:#666;font-size:12px">Si no has sido tu, ignora este email y avisanos. Tu ${tipo} actual sigue siendo el unico valido.</p>
+  </div>`;
+  return { subject: `Confirma el cambio de ${tipo} - ${env.APP_NAME}`, text, html };
+}
+
+export function clientInvitationTemplate(invitationUrl: string, nombre: string) {
+  const text = `Hola ${nombre},\n\nLa Asesoria Empresarial Juan Garcia te ha dado de alta en su plataforma. Activa tu cuenta y crea tu contrasenya en este enlace (valido 24 h):\n${invitationUrl}\n`;
+  const html = `<div style="${baseStyles}">
+    <h2>Bienvenido/a, ${nombre}</h2>
+    <p>La <strong>${env.APP_NAME}</strong> te ha dado de alta en su plataforma segura.</p>
+    <p>Pulsa el boton para activar tu cuenta y elegir tu contrasenya (enlace valido 24 horas):</p>
+    <p><a href="${invitationUrl}" style="${buttonStyles}">Activar mi cuenta</a></p>
+  </div>`;
+  return { subject: `Tu cuenta en ${env.APP_NAME}`, text, html };
+}
+
 export function accountLockedTemplate(unlockAt: Date) {
   const fecha = unlockAt.toLocaleString("es-ES", { timeZone: "Europe/Madrid" });
   const text = `Tu cuenta en ${env.APP_NAME} ha sido bloqueada temporalmente por multiples intentos fallidos de inicio de sesion. Se desbloqueara automaticamente el ${fecha}. Si no has sido tu, contacta con la asesoria.`;

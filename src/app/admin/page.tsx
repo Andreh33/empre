@@ -8,8 +8,14 @@ export default function AdminDashboard() {
       </p>
       <ul className="grid grid-cols-1 gap-3 md:grid-cols-2">
         <li className="rounded-lg border bg-card p-4">
-          <p className="font-semibold">Clientes</p>
-          <p className="text-sm text-muted-foreground">Listado y gestion (Fase 3).</p>
+          <p className="font-semibold">
+            <a href="/admin/clientes" className="text-primary underline-offset-4 hover:underline">
+              Clientes
+            </a>
+          </p>
+          <p className="text-sm text-muted-foreground">
+            Listado, busqueda, alta manual y edicion de fichas.
+          </p>
         </li>
         <li className="rounded-lg border bg-card p-4">
           <p className="font-semibold">Documentos</p>

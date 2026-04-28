@@ -18,6 +18,17 @@ export default async function AdminLayout({ children }: { children: React.ReactN
             <LogoutButton />
           </div>
         </div>
+        <nav className="container flex gap-4 overflow-x-auto pb-2 text-sm text-white/80">
+          <Link href="/admin" className="hover:text-gold">
+            Inicio
+          </Link>
+          <Link href="/admin/clientes" className="hover:text-gold">
+            Clientes
+          </Link>
+          <Link href="/admin/seguridad" className="hover:text-gold">
+            Mi seguridad
+          </Link>
+        </nav>
       </header>
       <main className="container py-8">{children}</main>
     </div>

@@ -79,6 +79,11 @@ export const ACCIONES_AUDIT = [
   "USER_SOFT_DELETED",
   "USER_HARD_DELETED",
   "ROLE_CHANGED",
+  "PROFILE_CREATED",
+  "PROFILE_UPDATED",
+  "PROFILE_SENSITIVE_CHANGE_REQUESTED",
+  "PROFILE_SENSITIVE_CHANGE_CONFIRMED",
+  "ASSIGNED_ADMIN_CHANGED",
   "FILE_UPLOADED",
   "FILE_DOWNLOADED",
   "FILE_DELETED",
@@ -89,6 +94,8 @@ export const ACCIONES_AUDIT = [
   "CONSENT_GIVEN",
   "CONSENT_REVOKED",
 ] as const;
+
+export const TIPOS_CAMBIO_SENSIBLE = ["DNI", "IBAN"] as const;
 
 // ---------------------------------------------------------------------
 // users: cuenta de acceso (admins y clientes).
@@ -109,6 +116,9 @@ export const users = sqliteTable(
     lockedUntil: text("locked_until"),
     lastLoginAt: text("last_login_at"),
     lastLoginIp: text("last_login_ip"),
+    onboardingCompleted: integer("onboarding_completed", { mode: "boolean" })
+      .notNull()
+      .default(false),
     createdAt: text("created_at")
       .notNull()
       .default(sql`(current_timestamp)`),
@@ -166,6 +176,32 @@ export const passwordResetTokens = sqliteTable(
   (t) => ({
     tokenHashIdx: uniqueIndex("pwd_reset_token_hash_idx").on(t.tokenHash),
     userIdIdx: index("pwd_reset_user_idx").on(t.userId),
+  }),
+);
+
+// ---------------------------------------------------------------------
+// sensitive_change_tokens: confirmacion email para cambios de DNI/IBAN.
+// El "payload" guarda el nuevo valor cifrado, hasta que el usuario confirma.
+// ---------------------------------------------------------------------
+export const sensitiveChangeTokens = sqliteTable(
+  "sensitive_change_tokens",
+  {
+    id: text("id").primaryKey(),
+    userId: text("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    tipo: text("tipo", { enum: TIPOS_CAMBIO_SENSIBLE }).notNull(),
+    payloadEncrypted: text("payload_encrypted").notNull(), // valor nuevo cifrado
+    tokenHash: text("token_hash").notNull(),
+    expiresAt: text("expires_at").notNull(),
+    usedAt: text("used_at"),
+    createdAt: text("created_at")
+      .notNull()
+      .default(sql`(current_timestamp)`),
+  },
+  (t) => ({
+    tokenHashIdx: uniqueIndex("sensitive_change_token_hash_idx").on(t.tokenHash),
+    userIdIdx: index("sensitive_change_user_idx").on(t.userId),
   }),
 );
 
@@ -492,3 +528,4 @@ export type InternalNote = typeof internalNotes.$inferSelect;
 export type FiscalEvent = typeof fiscalEvents.$inferSelect;
 export type AuditLog = typeof auditLogs.$inferSelect;
 export type Consent = typeof consents.$inferSelect;
+export type SensitiveChangeToken = typeof sensitiveChangeTokens.$inferSelect;
